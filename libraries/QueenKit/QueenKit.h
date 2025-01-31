@@ -5,25 +5,14 @@
 #define ROUND_MASK 63
 #define SNAKE_LENGTH 35
 
-#ifndef QUEENSERIAL
-#define QUEENSERIAL Serial
-
-#ifdef __AVR_ATmega2560__
+#if defined(__AVR_ATmega2560__)
 #define QUEENSERIAL Serial1
-#endif
-
-#ifdef __AVR_ATmega328P__
+#elif defined(__AVR_ATmega328P__)
+#define QUEENSERIAL Serial
+#else
 #define QUEENSERIAL Serial
 #endif
 
-#else 
-#define QUEENSERIAL Serial
-#endif
-
-
-
-// __AVR_ATmega2560__
-// __AVR_ATmega328P__
 #ifndef SWITCH
 #define SWITCH false
 #endif
@@ -78,20 +67,27 @@ public:
    * @param bits Сколько битов
    * @return uint32_t
    */
-  uint32_t getBits(uint32_t arrPos, uint32_t bits) {
+uint32_t getBits(uint32_t arrPos, uint32_t bits) {
     uint32_t result = 0;
-    uint32_t byteIndex = arrPos / 8;
-    uint32_t bitIndex = arrPos % 8;
-    for (uint32_t i = 0; i < bits; i++) {
-      if (bitIndex == 8) {
+    uint32_t byteIndex = arrPos >> 3; // Эквивалентно arrPos / 8
+    uint32_t bitIndex = arrPos & 0x07; // Эквивалентно arrPos % 8
+
+    // Обрабатываем биты, пока не достигнем конца массива или не соберем все биты
+    while (bits > 0) {
+        // Количество битов, которые можно взять из текущего байта
+        uint32_t bitsToTake = (8 - bitIndex) < bits ? (8 - bitIndex) : bits;
+        // Маска для извлечения нужных битов
+        uint32_t mask = (1 << bitsToTake) - 1;
+        // Извлекаем биты и добавляем их к результату
+        result |= ((inRPI[byteIndex] >> bitIndex) & mask) << (bits - bitsToTake);
+        // Обновляем оставшиеся биты и позиции
+        bits -= bitsToTake;
         byteIndex++;
         bitIndex = 0;
-      }
-      result |= ((inRPI[byteIndex] >> bitIndex) & 0x01) << i;
-      bitIndex++;
     }
+
     return result;
-  }
+}
 
   /**
    * @brief Добавить данные в нагрузку шины
@@ -102,14 +98,27 @@ public:
    * @param bits Сколько битов
    * @param bytes Данные
    */
-  void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
-    for (uint32_t i = 0; i < bits; i++) {
-      uint32_t byteIndex = (arrPos + i) / 8;
-      uint32_t bitIndex = (arrPos + i) % 8;
-      dataBoard[byteIndex] = (dataBoard[byteIndex] & ~(1 << bitIndex)) |
-                             (((bytes >> i) & 0x0001) << bitIndex);
+void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
+    uint32_t byteIndex = arrPos >> 3; // Эквивалентно arrPos / 8
+    uint32_t bitIndex = arrPos & 0x07; // Эквивалентно arrPos % 8
+
+    while (bits > 0) {
+        // Количество битов, которые можно записать в текущий байт
+        uint32_t bitsToSet = (8 - bitIndex) < bits ? (8 - bitIndex) : bits;
+        // Маска для очистки битов в целевом байте
+        uint32_t clearMask = ~(((1 << bitsToSet) - 1) << bitIndex);
+        // Маска для установки битов из входного значения
+        uint32_t setMask = (bytes & ((1 << bitsToSet) - 1)) << bitIndex;
+        // Очищаем биты и устанавливаем новые
+        dataBoard[byteIndex] = (dataBoard[byteIndex] & clearMask) | setMask;
+        // Сдвигаем входное значение для обработки оставшихся битов
+        bytes >>= bitsToSet;
+        // Обновляем оставшиеся биты и позиции
+        bits -= bitsToSet;
+        byteIndex++;
+        bitIndex = 0;
     }
-  }
+}
 
 private:
 
@@ -143,11 +152,13 @@ private:
       if (busID == id) {
         crcBuff[0] = busID;
         uint8_t tailSum = tail + 3;
+        
         for (int z = 0; z < 32; z++) {
           uint8_t roundMaskIndex = (tailSum + z) & ROUND_MASK;
           crcBuff[z + 1] = roundBuffer[roundMaskIndex];
           inRPI[z] = roundBuffer[roundMaskIndex];
         }
+        
         // если контрольная сумма соответствет то действуем дальше
         if (roundBuffer[(tail + 1) & ROUND_MASK] == crc8(crcBuff, 33)) {
           // Вызываем ссылку на функцию которую мы указали при init()

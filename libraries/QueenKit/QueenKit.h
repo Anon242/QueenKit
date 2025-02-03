@@ -67,8 +67,8 @@ public:
    */
   uint32_t getBits(uint32_t arrPos, uint32_t bits) {
     uint32_t result = 0;
-    uint32_t byteIndex = arrPos >> 8;
-    uint32_t bitIndex = arrPos & 0x07;
+    uint32_t byteIndex = arrPos / 8;
+    uint32_t bitIndex = arrPos % 8;
     for (uint32_t i = 0; i < bits; i++) {
       if (bitIndex == 8) {
         byteIndex++;
@@ -83,16 +83,13 @@ public:
   /**
    * @brief Добавить данные в нагрузку шины
    *
-   * Метод для заполнения битов в шину системы queen
-   *
-   * @param arrPos С какой позиции добавить биты
    * @param bits Сколько битов
    * @param bytes Данные
    */
   void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
     for (uint32_t i = 0; i < bits; i++) {
-      uint32_t byteIndex = (arrPos + i) >> 8;
-      uint32_t bitIndex = (arrPos + i) & 0x07;
+      uint32_t byteIndex = (arrPos + i) / 8;
+      uint32_t bitIndex = (arrPos + i) % 8;
       dataBoard[byteIndex] = (dataBoard[byteIndex] & ~(1 << bitIndex)) |
                              (((bytes >> i) & 0x0001) << bitIndex);
     }

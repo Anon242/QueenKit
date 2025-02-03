@@ -30,17 +30,15 @@ public:
 
   /**
    * @brief Назначаем слушатель
-   * 
+   *
    * @param function функция на которую будем ссылатся
    */
-  void attachFunction(void (*function)()){
-    atatchedF = function;
-  }
+  void attachFunction(void (*function)()) { atatchedF = function; }
 
-/**
- * @brief Запуск Serial
- * 
- */
+  /**
+   * @brief Запуск Serial
+   *
+   */
   void init() {
     QUEENSERIAL.begin(250000); // RS423
   }
@@ -67,27 +65,20 @@ public:
    * @param bits Сколько битов
    * @return uint32_t
    */
-uint32_t getBits(uint32_t arrPos, uint32_t bits) {
+  uint32_t getBits(uint32_t arrPos, uint32_t bits) {
     uint32_t result = 0;
-    uint32_t byteIndex = arrPos >> 3; // Эквивалентно arrPos / 8
-    uint32_t bitIndex = arrPos & 0x07; // Эквивалентно arrPos % 8
-
-    // Обрабатываем биты, пока не достигнем конца массива или не соберем все биты
-    while (bits > 0) {
-        // Количество битов, которые можно взять из текущего байта
-        uint32_t bitsToTake = (8 - bitIndex) < bits ? (8 - bitIndex) : bits;
-        // Маска для извлечения нужных битов
-        uint32_t mask = (1 << bitsToTake) - 1;
-        // Извлекаем биты и добавляем их к результату
-        result |= ((inRPI[byteIndex] >> bitIndex) & mask) << (bits - bitsToTake);
-        // Обновляем оставшиеся биты и позиции
-        bits -= bitsToTake;
+    uint32_t byteIndex = arrPos >> 8;
+    uint32_t bitIndex = arrPos & 0x07;
+    for (uint32_t i = 0; i < bits; i++) {
+      if (bitIndex == 8) {
         byteIndex++;
         bitIndex = 0;
+      }
+      result |= ((inRPI[byteIndex] >> bitIndex) & 0x01) << i;
+      bitIndex++;
     }
-
     return result;
-}
+  }
 
   /**
    * @brief Добавить данные в нагрузку шины
@@ -98,30 +89,16 @@ uint32_t getBits(uint32_t arrPos, uint32_t bits) {
    * @param bits Сколько битов
    * @param bytes Данные
    */
-void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
-    uint32_t byteIndex = arrPos >> 3; // Эквивалентно arrPos / 8
-    uint32_t bitIndex = arrPos & 0x07; // Эквивалентно arrPos % 8
-
-    while (bits > 0) {
-        // Количество битов, которые можно записать в текущий байт
-        uint32_t bitsToSet = (8 - bitIndex) < bits ? (8 - bitIndex) : bits;
-        // Маска для очистки битов в целевом байте
-        uint32_t clearMask = ~(((1 << bitsToSet) - 1) << bitIndex);
-        // Маска для установки битов из входного значения
-        uint32_t setMask = (bytes & ((1 << bitsToSet) - 1)) << bitIndex;
-        // Очищаем биты и устанавливаем новые
-        dataBoard[byteIndex] = (dataBoard[byteIndex] & clearMask) | setMask;
-        // Сдвигаем входное значение для обработки оставшихся битов
-        bytes >>= bitsToSet;
-        // Обновляем оставшиеся биты и позиции
-        bits -= bitsToSet;
-        byteIndex++;
-        bitIndex = 0;
+  void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
+    for (uint32_t i = 0; i < bits; i++) {
+      uint32_t byteIndex = (arrPos + i) >> 8;
+      uint32_t bitIndex = (arrPos + i) & 0x07;
+      dataBoard[byteIndex] = (dataBoard[byteIndex] & ~(1 << bitIndex)) |
+                             (((bytes >> i) & 0x0001) << bitIndex);
     }
-}
+  }
 
 private:
-
   /**
    * @brief Ссылка на метод который будет вызываться когда придут данные
    * @warning вызывать setBits() и getBits() только в методе на который
@@ -131,14 +108,14 @@ private:
 
   /**
    * @brief Получить последний индекс буфера массива
-   * 
-   * @return uint8_t 
+   *
+   * @return uint8_t
    */
   uint8_t head() { return (tail + SNAKE_LENGTH) & ROUND_MASK; }
 
   /**
    * @brief Получение нагрузки из шины
-   * 
+   *
    */
   void priem() {
     // Пишем в голову принятый байт
@@ -152,13 +129,13 @@ private:
       if (busID == id) {
         crcBuff[0] = busID;
         uint8_t tailSum = tail + 3;
-        
+
         for (int z = 0; z < 32; z++) {
           uint8_t roundMaskIndex = (tailSum + z) & ROUND_MASK;
           crcBuff[z + 1] = roundBuffer[roundMaskIndex];
           inRPI[z] = roundBuffer[roundMaskIndex];
         }
-        
+
         // если контрольная сумма соответствет то действуем дальше
         if (roundBuffer[(tail + 1) & ROUND_MASK] == crc8(crcBuff, 33)) {
           // Вызываем ссылку на функцию которую мы указали при init()
@@ -206,8 +183,8 @@ private:
 
   /**
    * @brief Метод для получения контрольной суммы
-   * @warning Использует табличный метод, необходима заранее высчитанная таблица
-   * значений с полиномом 0x31. Начальный crc строго 0xFF.
+   * @warning Использует табличный метод, необходима заранее высчитанная
+   * таблица значений с полиномом 0x31. Начальный crc строго 0xFF.
    * @param data массив данных
    * @param length длинна массива
    * @return uint8_t контрольная сумма
@@ -222,7 +199,7 @@ private:
 
   /**
    * @brief Начальный индекс буфферного массива
-   * 
+   *
    */
   uint8_t tail = 0;
   uint8_t outRPI[36] = {0x2A, 0x01, 0x10, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -237,7 +214,8 @@ private:
   uint8_t roundBuffer[64];
   uint8_t crcBuff[33];
 
-  /// Заранее вычесленные crc8 с полиномом 0x31 (значение crc8 должно начинатся с 0xFF)
+  /// Заранее вычесленные crc8 с полиномом 0x31 (значение crc8 должно
+  /// начинатся с 0xFF)
   const uint8_t crc8Table[256] = {
       0x0,  0x31, 0x62, 0x53, 0xc4, 0xf5, 0xa6, 0x97, 0xb9, 0x88, 0xdb, 0xea,
       0x7d, 0x4c, 0x1f, 0x2e, 0x43, 0x72, 0x21, 0x10, 0x87, 0xb6, 0xe5, 0xd4,

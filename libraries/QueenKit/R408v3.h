@@ -1,9 +1,8 @@
 #pragma once
-// Настройки конфигурации разведенной платы, обязательны перед вызовом библиотеки
-// Авто переключение приема предачи
-#define SWITCH true 
+// Настройки конфигурации разведенной платы, обязательны перед вызовом
+// библиотеки Авто переключение приема предачи
+#define SWITCH false
 #include "QueenKit.h"
-
 
 class Board : public QueenKit {
 public:
@@ -13,8 +12,8 @@ public:
   }
 
   // Функция задаем порты, включаем Serial для шины
- void init(void (*function)() = [](){}) {
-  QueenKit::init();
+  void init(void (*function)() = []() {}) {
+    QueenKit::init();
     // Назначаем attached function
     attachFunction(function);
 

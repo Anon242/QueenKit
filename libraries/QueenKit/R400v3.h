@@ -31,8 +31,8 @@ public:
 
   void out(uint8_t x) // Функция вывода байта на выход платы
   {
-    PORTB = (PORTB & 0xF9) | (x << 1);
-    PORTD = (PORTD & 0x9F) | (x >> 3);
+    PORTB = (PORTB & 0xF9) | ((x & 0x03) << 1);
+    PORTD = (PORTD & 0x9F) | ((x & 0x0C) << 3);
   }
 
 private:

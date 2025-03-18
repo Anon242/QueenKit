@@ -31,7 +31,7 @@ public:
   {
     PORTB = (PORTB & 0xF9) | ((x & 0x03) << 1);
     PORTD = (PORTD & 0x9F) | ((x & 0x0C) << 3);
-    PORTC = (PORTC & 0xEF) | (x & 0x10); // pc4 out
+    //PORTC = (PORTC & 0xEF) | (x & 0x10); // pc4 out
   }
 
 private:

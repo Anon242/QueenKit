@@ -2,7 +2,9 @@
 // Настройки конфигурации разведенной платы, обязательны перед вызовом библиотеки
 // Авто переключение приема предачи
 #define SWITCH true 
+#define _R400v3
 #include "QueenKit.h"
+
 
 class Board : public QueenKit {
 public:

@@ -1,8 +1,10 @@
 // Настройки конфигурации разведенной платы, обязательны перед вызовом библиотеки
 // Авто переключение приема предачи
 #define SWITCH true 
-////////////////////////////////////////////////////////////
+#define _R416
 #include "QueenKit.h"
+
+
 
 class Board : public QueenKit {
 public:
@@ -63,10 +65,9 @@ public:
 
 private:
   void setupPorts() {
-    DDRC = 0b01110000;
+    DDRC = 0b01000000;
     DDRD = 0b11110100;
     DDRB = 0b00000110;
-    PORTC |= (1 << 5);
 
     out(0xFFFF);
     delay(100);

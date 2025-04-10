@@ -3,18 +3,25 @@
 #define DEVICE_ID 1
 Board queen(DEVICE_ID);
 
-//===================================================================================
-//      Filename  : R404v5
+//=================================================================================== 
+//      Filename  : !FILENAMEFLAG
 //      Author    : MeGum
-//      Created   : 20.01.2025 16:17:35
+//      Github    : https://github.com/Anon242/QueenKit
+//      Created   : !CREATEDFLAG
 //      Version   : 1.0
-//      Notes     :
-//                :
-//===================================================================================
+//      Notes     : 
+//                : 
+//=================================================================================== 
 
-void setup() { queen.init(onMessage); }
+void setup() 
+{ 
+  queen.init(onMessage); 
+}
 
-void loop() { queen.loop(); }
+void loop() 
+{ 
+  queen.loop(); 
+}
 
 void onMessage() {
   queen.out(queen.getBits(0, 7));

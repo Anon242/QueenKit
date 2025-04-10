@@ -3,7 +3,9 @@
 // Авто переключение приема предачи
 #define SWITCH true 
 ////////////////////////////////////////////////////////////
+#define _QueenUnisense4
 #include "QueenKit.h"
+
 
 class Board : public QueenKit {
 public:

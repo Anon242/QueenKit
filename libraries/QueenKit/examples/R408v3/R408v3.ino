@@ -1,4 +1,4 @@
-#include <QueenUnisense3v1.h>
+#include <R408v3.h>
 
 #define DEVICE_ID 1
 Board queen(DEVICE_ID);
@@ -14,7 +14,7 @@ Board queen(DEVICE_ID);
 //=================================================================================== 
 
 void setup() 
-{ 
+{
   queen.init(onMessage); 
 }
 
@@ -23,17 +23,7 @@ void loop()
   queen.loop(); 
 }
 
-void onMessage() 
-{  
-  // Получаем буфер ADC
-  uint16_t *adcBuffer = queen.inADC();
-  for (uint8_t i = 0; i < 16; i++) {
-    uint8_t bitIndex = 16 + 10 * i;
-    // Назначаем PWM из шины
-    queen.pwmOuts(queen.getBits(bitIndex, 10), i + 1);
-    // Отправляем данные ADC в шину
-    queen.setBits(bitIndex, 10, adcBuffer[i]);
-  }
-  // Отправляем цифровые пины в шину
-  queen.setBits(0, 16, queen.in());
+void onMessage() {
+  queen.out(queen.getBits(0, 8));
+  queen.setBits(0, 8, queen.in());
 }

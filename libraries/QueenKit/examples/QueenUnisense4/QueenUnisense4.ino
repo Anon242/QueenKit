@@ -36,4 +36,6 @@ void onMessage()
   }
   // Отправляем цифровые пины в шину
   queen.setBits(0, 16, queen.in());
+  // Получаем данные, даем на выход
+  queen.out(queen.getBits(0,16));
 }

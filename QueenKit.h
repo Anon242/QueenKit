@@ -1,6 +1,7 @@
 
 #pragma once
 #include <Arduino.h>
+#include <SoftwareSerial.h>
 
 #define ROUND_MASK 63
 #define SNAKE_LENGTH 35
@@ -10,7 +11,7 @@
 #elif defined(__AVR_ATmega328P__)
 #define QUEENSERIAL Serial
 #else
-#define QUEENSERIAL Serial
+#error
 #endif
 
 #ifndef SWITCH
@@ -20,8 +21,8 @@
 /**
  * @brief Класс для работы с нашей системой связи по шине
  *
- * Перед #include класса QueenKit необходимо создать #define QUEENSERIAL
- * [Serial || Serial1 || ...] и #define SWITCH [true || false]. В setup вызвать
+ * Перед #include класса QueenKit создать Queen
+ * #define SWITCH [true || false]. В setup вызвать
  * QueenKit init(), в loop вызывать QueenKit loop().
  */
 class QueenKit {
@@ -42,15 +43,12 @@ public:
   void init() {
     QUEENSERIAL.begin(250000); // RS423
   }
-
+  
   /**
    * @brief Метод для прослушивания Serial и дальнейшей обработки данных
    */
   void loop() {
-    if (QUEENSERIAL.available()) {
-      priem();
-    }
-
+    priem();
 #if SWITCH == false
     PORTD &= ~(1 << 2);
 #endif
@@ -65,34 +63,32 @@ public:
    * @param bits Сколько битов
    * @return uint32_t
    */
-  uint32_t getBits(uint32_t arrPos, uint32_t bits) {
-    uint32_t result = 0;
+  inline uint32_t getBits(uint32_t arrPos, uint32_t bits) {
     uint32_t byteIndex = arrPos >> 3;
     uint32_t bitIndex = arrPos & 7;
-    for (uint32_t i = 0; i < bits; i++) {
-      if (bitIndex == 8) {
-        byteIndex++;
-        bitIndex = 0;
-      }
-      result |= ((inRPI[byteIndex] >> bitIndex) & 0x01) << i;
-      bitIndex++;
-    }
-    return result;
-  }
 
+    uint64_t chunk;
+    memcpy(&chunk, &inRPI[byteIndex], sizeof(uint64_t));
+
+    return (chunk >> bitIndex) & ((1ULL << bits) - 1);
+  }
   /**
    * @brief Добавить данные в нагрузку шины
    *
    * @param bits Сколько битов
    * @param bytes Данные
    */
-  void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
-    for (uint32_t i = 0; i < bits; i++) {
-      uint32_t byteIndex = (arrPos + i) >> 3;
-      uint32_t bitIndex = (arrPos + i) & 7;
-      dataBoard[byteIndex] = (dataBoard[byteIndex] & ~(1 << bitIndex)) |
-                             (((bytes >> i) & 0x0001) << bitIndex);
-    }
+  inline void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
+    uint32_t byteIndex = arrPos >> 3;
+    uint32_t bitIndex = arrPos & 7;
+
+    uint64_t chunk;
+    memcpy(&chunk, &dataBoard[byteIndex], sizeof(uint64_t));
+
+    const uint64_t mask = ((1ULL << bits) - 1) << bitIndex;
+    chunk = (chunk & ~mask) | ((bytes << bitIndex) & mask);
+
+    memcpy(&dataBoard[byteIndex], &chunk, sizeof(uint64_t));
   }
 
 private:
@@ -108,48 +104,67 @@ private:
    *
    * @return uint8_t
    */
-  uint8_t head() { return (tail + SNAKE_LENGTH) & ROUND_MASK; }
+  inline uint8_t head() { return (tail + SNAKE_LENGTH) & ROUND_MASK; }
 
   /**
    * @brief Получение нагрузки из шины
-   *
+   * Почему priem? Так исторически сложилось
    */
   void priem() {
+    // Данных нет - выходим
+    if (!QUEENSERIAL.available())
+      return;
     // Пишем в голову принятый байт
     uint8_t headIndex = head();
     roundBuffer[headIndex] = QUEENSERIAL.read();
-    // если голова равна проценту и хвост равен звездочке то проверяем дальше
-    if (roundBuffer[headIndex] == 0x025 && roundBuffer[tail] == 0x02A) {
 
-      uint8_t busID = roundBuffer[(tail + 2) & ROUND_MASK];
-      // если номер совпадает с ID нашего устройства то проверяем дальше
-      if (busID == id) {
-        crcBuff[0] = busID;
-        uint8_t tailSum = tail + 3;
-
-        for (int z = 0; z < 32; z++) {
-          uint8_t roundMaskIndex = (tailSum + z) & ROUND_MASK;
-          crcBuff[z + 1] = roundBuffer[roundMaskIndex];
-          inRPI[z] = roundBuffer[roundMaskIndex];
-        }
-
-        // если контрольная сумма соответствет то действуем дальше
-        if (roundBuffer[(tail + 1) & ROUND_MASK] == crc8(crcBuff, 33)) {
-          // Вызываем ссылку на функцию которую мы указали при init()
-          (*atatchedF)();
-          // Уходим в функцию формирования выходного массива
-          formation_out();
-        }
-      }
+    // Eсли голова равна проценту и хвост равен звездочке то проверяем дальше
+    if (!((roundBuffer[headIndex] == 0x25) && (roundBuffer[tail] == 0x2A))) {
+      tailShift();
+      return;
     }
-    tail = ((tail + 1) & ROUND_MASK); // сдвигаем хвост змеи вперед
+
+    // Если совпадает айди запроса с нашим айди
+    const uint8_t busID = roundBuffer[(tail + 2) & ROUND_MASK];
+    if (busID != id) {
+      tailShift();
+      return;
+    }
+
+    crcBuff[0] = busID;
+    const uint8_t tailSum = tail + 3;
+
+    // Высасываем полезные данные в отдельный массив
+    for (int z = 0; z < 32; z++) {
+      uint8_t roundMaskIndex = (tailSum + z) & ROUND_MASK;
+      crcBuff[z + 1] = roundBuffer[roundMaskIndex];
+      inRPI[z] = roundBuffer[roundMaskIndex];
+    }
+
+    // Если контрольная сумма соответствет то действуем дальше
+    if (roundBuffer[(tail + 1) & ROUND_MASK] != crc8(crcBuff, 33)) {
+      tailShift();
+      return;
+    }
+    // Вызываем ссылку на функцию которую мы указали при init()
+    (*atatchedF)();
+    // Уходим в функцию формирования выходного массива
+    formation_out();
+
+    // Двигаем хвост змеи
+    tailShift();
   }
+
+  /**
+   * @brief Двигаем хвост змеи на 1
+   */
+  inline void tailShift() { tail = ((tail + 1) & ROUND_MASK); }
 
   // Если на плате стоит автопереключение
 #if SWITCH == true
-  void transmit() { QUEENSERIAL.write(outRPI, 36); }
+  inline void transmit() { QUEENSERIAL.write(outRPI, 36); }
 #else // Если на плате нет автопереключения, переключаем программно
-  void transmit() {
+inline void transmit() {
     delayMicroseconds(70);
     PORTD |= (1 << 2);
     QUEENSERIAL.write(outRPI, 36);
@@ -162,15 +177,13 @@ private:
    * @brief Формирование данных перед отправкой
    *
    */
-  void formation_out() {
+  inline void formation_out() {
     // Сохраняем id и заполняем outRPI
     outRPI[2] = id;
     crcBuff[0] = id;
     // Заполняем outRPI и CRC
-    for (int i = 0; i < 32; i++) {
-      outRPI[i + 3] = dataBoard[i];
-      crcBuff[i + 1] = dataBoard[i];
-    }
+    memcpy(&outRPI[3], dataBoard, 32);
+    memcpy(&crcBuff[1], dataBoard, 32);
     // Вычисляем контрольную сумму
     outRPI[1] = crc8(crcBuff, 33);
     outRPI[35] = 0x25;
@@ -186,7 +199,7 @@ private:
    * @param length длинна массива
    * @return uint8_t контрольная сумма
    */
-  uint8_t crc8(const uint8_t *data, uint8_t length) {
+  inline uint8_t crc8(const uint8_t *data, uint8_t length) {
     uint8_t crc = 0xFF;
     for (size_t i = 0; i < length; i++) {
       crc = crc8Table[crc ^ data[i]];
@@ -238,3 +251,94 @@ private:
       0xff, 0xce, 0x9d, 0xac,
   };
 };
+
+
+
+
+class QueenPlayer{
+    public:
+
+    QueenPlayer(){
+        #if defined _R400v2
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R400v3
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R404v4
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R404v5
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R408v2
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R408v3
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _R416
+            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
+        #elif defined _QueenUnisense4
+            // Serial 2
+        #elif defined _QueenUnisense3v1
+            playerSerial = new SoftwareSerial(40, 41);
+        #else 
+            #error Плата не поддерживается.
+        #endif
+    }
+
+    void init(){
+        playerBegin();
+    }
+
+    void play(uint8_t track, uint8_t volume){
+        if (player_track != track) {
+          player_track = track;
+          if (player_track > 0)
+            player(0x03, player_track);
+          else if (player_track == 0)
+            player(0x0E, 0x00);
+        }
+        if (player_volume != volume) {
+          player_volume = volume;
+          player(0x06, player_volume < 30 ? player_volume : 30);
+        }
+    }
+
+    private:
+    SoftwareSerial* playerSerial; 
+    uint8_t player_track = 0;
+    uint8_t player_volume = 0;
+
+    
+    void playerBegin(){
+        #if defined _QueenUnisense4
+            Serial2.begin(9600);
+        #else
+            playerSerial->begin(9600); // init player
+        #endif
+    }
+
+    uint8_t player_buffer[10] = {
+        0x7E, // [0] start byte, always 0x7E
+        0xFF, // [1] version, always 0xFF
+        0x06, // [2] length, always 0x06
+        0x00, // [3]*command: 0x03 - track, 0x06 - volume, 0x0E - pause
+        0x00, // [4] feedback, lways 0x00
+        0x00, // [5] high byte, always 0x00
+        0x00, // [6]*low byte (parameter) track or volume
+        0xFE, // [7] ???
+        0x00, // [8]*checksumm
+        0xEF  // [9] end byte, always 0xEF
+    };
+
+    void player( uint8_t command, uint8_t value )
+{
+  player_buffer[ 3 ] = command;
+  player_buffer[ 6 ] = value;
+  uint8_t checksum = 0;
+  for ( int i = 2; i < 8; i ++ ) checksum += player_buffer[i];
+  player_buffer[8] = (uint8_t) ~checksum;
+  
+    #if defined _QueenUnisense4
+        Serial2.write(player_buffer, 10);
+    #else
+        playerSerial->write( player_buffer, 10 );
+    #endif
+} 
+};       

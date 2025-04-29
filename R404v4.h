@@ -23,7 +23,7 @@ public:
     setPorts();
   }
 
-  uint8_t in() // Функция чтения байта на входе платы
+  inline uint8_t in() // Функция чтения байта на входе платы
   {
     uint8_t in_D = PIND;
     uint8_t in_B = PINB;
@@ -35,7 +35,7 @@ public:
              ((in_C & 0x20) << 1));
   }
 
-  void out(uint8_t x) // Функция вывода байта на выход платы НЕТ OUT
+  inline void out(uint8_t x) // Функция вывода байта на выход платы НЕТ OUT
                       // !!!!!!!
   {
     PORTD = (PORTD & 0x97) | ((x & 0x01) << 6) | ((x & 0x02) << 4) | (x & 0x08);

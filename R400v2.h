@@ -22,14 +22,14 @@ public:
     setPorts();
   }
 
-  uint8_t in() // Функция чтения байта на входе платы
+  inline uint8_t in() // Функция чтения байта на входе платы
   {
     uint8_t in_C = PINC;
     return ~(((in_C & 0x08) >> 3) | ((in_C & 0x04) >> 1) |
              ((in_C & 0x02) << 1) | ((in_C & 0x20) >> 2)) & ~0b11110000;
   }
 
-  void out(uint8_t x) // Функция вывода байта на выход платы
+  inline void out(uint8_t x) // Функция вывода байта на выход платы
   {
     PORTB = (PORTB & 0xF9) | ((x & 0x03) << 1);
     PORTD = (PORTD & 0x9F) | ((x & 0x0C) << 3);

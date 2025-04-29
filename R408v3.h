@@ -23,7 +23,7 @@ public:
     setPorts();
   }
 
-  uint16_t in() // Функция чтения байта на входе платы
+  inline uint16_t in() // Функция чтения байта на входе платы
   {
     uint16_t ins = 0x0000;
     // DDRB = 0b00000000;//portB IN
@@ -41,7 +41,7 @@ public:
     return ~ins;
   }
 
-  void out(uint16_t x) // Функция вывода байта на выход платы
+  inline void out(uint16_t x) // Функция вывода байта на выход платы
   {
     PORTD |= 0x80;                                         // OE1,2 disable
     DDRB |= 0b00001111;                                    // portB out

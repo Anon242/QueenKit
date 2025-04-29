@@ -32,7 +32,7 @@ public:
   }
 
   // Функция чтения байтов на входе платы
-  uint16_t in() {
+  inline uint16_t in() {
     
     return ~( (PINJ) | (((PINA & 0x01) << 7) | ((PINA & 0x02) << 5) |
              ((PINA & 0x04) << 3) | ((PINA & 0x08) << 1) |
@@ -41,7 +41,7 @@ public:
 
   }
 
-  uint16_t *inADC() { return adcBuffer; }
+  inline uint16_t *inADC() { return adcBuffer; }
 
   void pwmOuts(uint8_t pwm, uint8_t out) {
 

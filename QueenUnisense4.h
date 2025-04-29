@@ -35,7 +35,7 @@ public:
   }
 
   // Функция чтения байтов на входе платы
-  uint32_t in() 
+  inline uint32_t in() 
   {
 
     uint8_t A = ((PINA & 0x01) << 7) | ((PINA & 0x02) << 5) |
@@ -55,7 +55,7 @@ public:
              (uint32_t)PINJ);
   }
 
-  void out(uint16_t x) // Функция вывода байта на выход платы
+  inline void out(uint16_t x) // Функция вывода байта на выход платы
   {
     uint8_t iHByte = x >> 8;
     uint8_t hByte = ((iHByte & 0x01) << 7) | ((iHByte & 0x02) << 5) |

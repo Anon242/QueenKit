@@ -1,11 +1,10 @@
 #pragma once
-// Настройки конфигурации разведенной платы, обязательны перед вызовом библиотеки
-// Авто переключение приема предачи
-#define SWITCH true 
+// Настройки конфигурации разведенной платы, обязательны перед вызовом
+// библиотеки Авто переключение приема предачи
+#define SWITCH true
 ////////////////////////////////////////////////////////////
 #define _QueenUnisense4
 #include "QueenKit.h"
-
 
 class Board : public QueenKit {
 public:
@@ -15,7 +14,7 @@ public:
   }
 
   // Функция задаем порты, включаем Serial для шины
-  void init(void (*function)() = [](){}) {
+  void init(void (*function)() = []() {}) {
     QueenKit::init();
     // Назначаем attached function
     attachFunction(function);
@@ -30,13 +29,23 @@ public:
 
   // Переопределение loop для считывания adcIndex
   void loop() {
+
+    ms = millis();
+    if (pinsStatusChanged()){
+      PORTG |= (1 << DDG1); 
+    }
+
+    if(ms - oldMs >= 190){
+      PORTG &= ~(1 << DDG1); 
+      oldMs = ms;
+    }
+
     QueenKit::loop();
     loopADC();
   }
 
   // Функция чтения байтов на входе платы
-  inline uint32_t in() 
-  {
+  inline uint32_t in() {
 
     uint8_t A = ((PINA & 0x01) << 7) | ((PINA & 0x02) << 5) |
                 ((PINA & 0x04) << 3) | ((PINA & 0x08) << 1) |
@@ -85,7 +94,7 @@ public:
   uint16_t *inADC() { return adcBuffer; }
 
   void pwmOuts(uint8_t pwm, uint8_t out) {
-    
+
     switch (out) {
     case 1:
       OCR5C = pwm; // 1
@@ -142,9 +151,20 @@ public:
       OCR0B = pwm; // 15
       OCR0B ? TCCR0A |= (1 << COM0B1) : TCCR0A &= ~(1 << COM0B1);
       break;
-     
     }
-     
+  }
+
+  void ledError() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+
+    for (int i = 0; i < 30; i++) {
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+      if (i % 6 == 0)
+        delay(600);
+      delay(100);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
   }
 
 private:
@@ -152,6 +172,9 @@ private:
   int8_t adcIndex = 0;
   uint16_t adcBuffer[16];
   ////////////// ADC //////////////
+
+  long oldMs;
+  long ms;
 
   // Ports
   void setupPorts() {
@@ -198,6 +221,26 @@ private:
     OCR5C = 0;
   }
 
+  uint8_t oldPINF = 0;
+  uint8_t oldPINK = 0;
+  uint8_t oldPINA = 0;
+  uint8_t oldPINJ = 0;
+
+  bool pinsStatusChanged() {
+    bool result = false;
+
+    if (PINF != oldPINF || PINK != oldPINK || PINA != oldPINA ||
+        PINJ != oldPINJ)
+      result = true;
+
+    oldPINF = PINF;
+    oldPINK = PINK;
+    oldPINA = PINA;
+    oldPINJ = PINJ;
+
+    return result;
+  }
+
   ////////////// ADC //////////////
   void readingInBufferADC() {
     adcIndex = adcIndex < 0 ? 15 : adcIndex;
@@ -232,5 +275,29 @@ private:
     // Входим только тогда, когда ADC посчитал один из пинов
     if (!(ADCSRA & (1 << ADSC)))
       readingInBufferADC();
+  }
+
+  struct RegisterLocation {
+    volatile uint8_t *port;
+    volatile uint8_t *ddr;
+    uint8_t pin;
+  };
+
+  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD2};
+
+  void ledStartup() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+
+
+    *pinRXIn.port |= (1 << pinRXIn.pin);
+
+    for (uint8_t z = 0; z < 7; z++) {
+      delay(36 * 7);
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+
   }
 };

@@ -1,9 +1,10 @@
 #pragma once
-// Настройки конфигурации разведенной платы, обязательны перед вызовом библиотеки
-// Авто переключение приема предачи
-#define SWITCH true 
-#include "QueenKit.h"
+// Настройки конфигурации разведенной платы, обязательны перед вызовом
+// библиотеки Авто переключение приема предачи
+#define SWITCH true
 #define _QueenUnisense3v1
+#include "QueenKit.h"
+
 
 class Board : public QueenKit {
 public:
@@ -13,32 +14,33 @@ public:
   }
 
   // Функция задаем порты, включаем Serial для шины
-  void init(void (*function)() = [](){}) {
+  void init(void (*function)() = []() {}) {
     QueenKit::init();
     // Назначаем attached function
     attachFunction(function);
-  
+
     // Настраиваем порты
     setupPorts();
     setupADC();
-    // на 3 и 15 пине есть фейковое начальное срабатывание PWM, отключаем и включаем
+    // на 3 и 15 пине есть фейковое начальное срабатывание PWM, отключаем и
+    // включаем
     disableFakePWM();
   }
 
-// Переопределение loop для считывания adc 
-  void loop(){
+  // Переопределение loop для считывания adc
+  void loop() {
     QueenKit::loop();
     loopADC();
   }
 
   // Функция чтения байтов на входе платы
   inline uint16_t in() {
-    
-    return ~( (PINJ) | (((PINA & 0x01) << 7) | ((PINA & 0x02) << 5) |
-             ((PINA & 0x04) << 3) | ((PINA & 0x08) << 1) |
-             ((PINA & 0x10) >> 1) | ((PINA & 0x20) >> 3) |
-             ((PINA & 0x40) >> 5) | ((PINA & 0x80) >> 7)) << 8);
 
+    return ~((PINJ) | (((PINA & 0x01) << 7) | ((PINA & 0x02) << 5) |
+                       ((PINA & 0x04) << 3) | ((PINA & 0x08) << 1) |
+                       ((PINA & 0x10) >> 1) | ((PINA & 0x20) >> 3) |
+                       ((PINA & 0x40) >> 5) | ((PINA & 0x80) >> 7))
+                          << 8);
   }
 
   inline uint16_t *inADC() { return adcBuffer; }
@@ -104,8 +106,20 @@ public:
     }
   }
 
+  void ledError() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+
+    for (int i = 0; i < 30; i++) {
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+      if (i % 6 == 0)
+        delay(600);
+      delay(100);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+  }
+
 private:
-  
   ////////////// ADC //////////////
   int adc = 0;
   uint16_t adcBuffer[10];
@@ -186,36 +200,91 @@ private:
     adc++;
   }
   /*
-  
+
       adc = adc < 0 ? 15 : adc;
     adcBuffer[(adc+1) % 16] = ADC; // Записываем значение в массив
     ADCSRB = (ADCSRB & 0xF7) | (adc & 0x08);
     ADMUX = (ADMUX & 0xE0) | (adc & 0x07);
     ADCSRA |= (1 << ADSC); //  Запускаем АЦП
     adc--;
-  
+
   */
 
   void setupADC() {
     // Настраиваем и включаем ADC
     ADCSRA &= ~(1 << ADPS0); //  Частота дискретизации
     ADCSRA &= ~(1 << ADPS1);
-    ADCSRA |= (1 << ADPS2);               //  Частота дискретизации
-    ADMUX |= (1 << REFS0);                 //  Vref напряжение питания МК
+    ADCSRA |= (1 << ADPS2); //  Частота дискретизации
+    ADMUX |= (1 << REFS0);  //  Vref напряжение питания МК
     ADMUX &= ~(1 << ADLAR); //  Правостороннее выравнивание (стандартно)
     ADCSRA |= (1 << ADEN);  // Включаем АЦП
   }
 
-  void disableFakePWM(){
+  void disableFakePWM() {
     // Отключаем ложное начальное срабатывание ШИМ 3
-    OCR0A ? TCCR0A |= (1 << COM0A1): TCCR0A &= ~(1 << COM0A1); 
+    OCR0A ? TCCR0A |= (1 << COM0A1) : TCCR0A &= ~(1 << COM0A1);
     // Отключаем ложное начальное срабатывание ШИМ 15
-    OCR0B ? TCCR0A |= (1 << COM0B1): TCCR0A &= ~(1 << COM0B1); 
+    OCR0B ? TCCR0A |= (1 << COM0B1) : TCCR0A &= ~(1 << COM0B1);
   }
 
-    void loopADC() {
+  void loopADC() {
     // Входим только тогда, когда ADC посчитал один из пинов
     if (!(ADCSRA & (1 << ADSC)))
       readingInBufferADC();
+  }
+
+  struct RegisterLocation {
+    volatile uint8_t *port;
+    volatile uint8_t *ddr;
+    uint8_t pin;
+  };
+
+#define REGISTERINSIZE 16
+  const RegisterLocation RegistersIn[REGISTERINSIZE] = {
+      {&PORTJ, &DDRJ, PJ0}, 
+      {&PORTJ, &DDRJ, PJ1}, 
+      {&PORTJ, &DDRJ, PJ2},
+      {&PORTJ, &DDRJ, PJ3}, 
+      {&PORTJ, &DDRJ, PJ4}, 
+      {&PORTJ, &DDRJ, PJ5},
+      {&PORTJ, &DDRJ, PJ6}, 
+      {&PORTJ, &DDRJ, PJ7}, 
+      {&PORTA, &DDRA, PJ7},
+      {&PORTA, &DDRA, PJ6}, 
+      {&PORTA, &DDRA, PJ5}, 
+      {&PORTA, &DDRA, PJ4},
+      {&PORTA, &DDRA, PJ3}, 
+      {&PORTA, &DDRA, PJ2}, 
+      {&PORTA, &DDRA, PJ1},
+      {&PORTA, &DDRA, PJ0},
+  };
+
+  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD2};
+
+
+  void ledStartup() {
+    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+      *RegistersIn[i].ddr |= (1 << RegistersIn[i].pin);
+    }
+
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+    *pinRXIn.port |= (1 << pinRXIn.pin);
+
+    for (uint8_t z = 0; z < 7; z++) {
+      for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+        *RegistersIn[i].port ^= (1 << RegistersIn[i].pin);
+
+        delay(210 / REGISTERINSIZE);
+      }
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+
+
+    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+      *RegistersIn[i].ddr &= ~(1 << RegistersIn[i].pin);
+    }
   }
 };

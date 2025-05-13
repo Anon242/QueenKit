@@ -405,8 +405,7 @@ inline void raptorOut(uint8_t id) {
   memcpy(&outRaptors[3], &dataRPI[id], 32);
   memcpy(&crcBuff[1], &dataRPI[id], 32);
 
-  outRaptors[1] = crc8(crcBuff, 33); //  0 - 33 байт данные //  1 байт равен
-                                     //  контрольной сумме
+  outRaptors[1] = crc8(crcBuff, 33); 
   Serial1.write(outRaptors, LENGHT_ARRAY_OUT);
 }
 

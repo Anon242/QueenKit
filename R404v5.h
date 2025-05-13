@@ -5,7 +5,6 @@
 #define _R404v5
 #include "QueenKit.h"
 
-
 class Board : public QueenKit {
 public:
   Board(uint8_t id) {
@@ -14,7 +13,7 @@ public:
   }
 
   // Функция задаем порты, включаем Serial для шины
-  void init(void (*function)() = [](){}) {
+  void init(void (*function)() = []() {}) {
     QueenKit::init();
     // Назначаем attached function
     attachFunction(function);
@@ -42,6 +41,19 @@ public:
             ((x & 0x20) >> 3) | ((x & 0x40) >> 3); // pc4 out
   }
 
+  void ledError() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+
+    for (int i = 0; i < 30; i++) {
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+      if (i % 6 == 0)
+        delay(600);
+      delay(100);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+  }
+
 private:
   void setPorts() {
     DDRC |= (1 << PC0) | (1 << PC1) | (1 << PC2) | (1 << PC3);
@@ -52,4 +64,45 @@ private:
 
     DDRB = 0b00000000;
   }
+
+  struct RegisterLocation {
+    volatile uint8_t *port;
+    volatile uint8_t *ddr;
+    uint8_t pin;
+  };
+
+#define REGISTERINSIZE 5
+  const RegisterLocation RegistersIn[REGISTERINSIZE] = {{&PORTD, &DDRD, PD7},
+                                                          {&PORTB, &DDRB, PB5},
+                                                          {&PORTB, &DDRB, PB0},
+                                                          {&PORTB, &DDRB, PB2},
+                                                          {&PORTB, &DDRB, PB1}};
+
+  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD0};
+
+  void ledStartup() {
+    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+      *RegistersIn[i].ddr |= (1 << RegistersIn[i].pin);
+    }
+
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+    *pinRXIn.port |= (1 << pinRXIn.pin);
+
+    for (uint8_t z = 0; z < 7; z++) {
+      for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+        *RegistersIn[i].port ^= (1 << RegistersIn[i].pin);
+
+        delay(180 / REGISTERINSIZE);
+      }
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+
+    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
+      *RegistersIn[i].ddr &= ~(1 << RegistersIn[i].pin);
+    }
+  }
+
+
 };

@@ -11,7 +11,7 @@
 #elif defined(__AVR_ATmega328P__)
 #define QUEENSERIAL Serial
 #else
-#error
+#error Неизвестный микроконтроллер
 #endif
 
 #ifndef SWITCH
@@ -26,21 +26,22 @@
  * QueenKit init(), в loop вызывать QueenKit loop().
  */
 class QueenKit {
-public:
-  uint8_t id; // ID Платы
-
+protected:
   /**
    * @brief Назначаем слушатель
    *
    * @param function функция на которую будем ссылатся
    */
   void attachFunction(void (*function)()) { atatchedF = function; }
-
+public:
+  uint8_t id; // ID Платы
   /**
    * @brief Запуск Serial
    *
    */
   void init() {
+    delay(100);
+    ledStartup(); // Мигаем лампочками
     QUEENSERIAL.begin(250000); // RS423
   }
   
@@ -91,6 +92,10 @@ public:
     memcpy(&dataBoard[byteIndex], &chunk, sizeof(uint64_t));
   }
 
+  void softReset() {
+    asm volatile ("jmp 0");
+  }
+
 private:
   /**
    * @brief Ссылка на метод который будет вызываться когда придут данные
@@ -98,6 +103,20 @@ private:
    * ссылаемся (onMessage)
    */
   void (*atatchedF)();
+
+  /**
+   * @brief Запускаются мигания лампочек у плат, на которых это возможно на 2 сек
+   * 
+   */
+  virtual void ledStartup() = 0;
+
+  /**
+   * @brief Запуск ошибки на сек 5 с миганием лампочек и затем горячаяя перезагрузка платы
+   * 
+   */
+  virtual void ledError() = 0;
+  
+
 
   /**
    * @brief Получить последний индекс буфера массива

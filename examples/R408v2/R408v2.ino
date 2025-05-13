@@ -5,7 +5,7 @@ Board queen(DEVICE_ID);
 
 //=================================================================================== 
 //      Filename  : !FILENAMEFLAG
-//      Author    : MeGum
+//      Author    : !AUTHORFLAG
 //      Github    : https://github.com/Anon242/QueenKit
 //      Created   : !CREATEDFLAG
 //      Version   : 1.0

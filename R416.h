@@ -63,6 +63,19 @@ public:
     DDRC &= ~0b00001111;                                    // portC IN
   }
 
+  void ledError() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+
+    for (int i = 0; i < 30; i++) {
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+      if (i % 6 == 0)
+        delay(600);
+      delay(100);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+  }
+
 private:
   void setupPorts() {
     DDRC = 0b01000000;
@@ -73,4 +86,27 @@ private:
     delay(100);
     out(0x0000);
   }
+
+  struct RegisterLocation {
+    volatile uint8_t *port;
+    volatile uint8_t *ddr;
+    uint8_t pin;
+  };
+
+  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD0};
+
+
+  void ledStartup() {
+    *pinRXIn.ddr |= (1 << pinRXIn.pin);
+    *pinRXIn.port |= (1 << pinRXIn.pin);
+
+    for (uint8_t z = 0; z < 7; z++) {
+      delay(36*7);
+      *pinRXIn.port ^= (1 << pinRXIn.pin);
+    }
+
+    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
+  }
+
+
 };

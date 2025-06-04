@@ -106,18 +106,6 @@ public:
     }
   }
 
-  void ledError() {
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
-
-    for (int i = 0; i < 30; i++) {
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-      if (i % 6 == 0)
-        delay(600);
-      delay(100);
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-  }
 
 private:
   ////////////// ADC //////////////
@@ -192,12 +180,13 @@ private:
 
   ////////////// ADC //////////////
   void readingInBufferADC() {
-    adc = adc > 9 ? 0 : adc;
     adcBuffer[adc] = ADC; // Записываем значение в массив
+    adc = (adc + 1) % 10;
+
     ADCSRB = (ADCSRB & 0xF7) | (adc & 0x08);
     ADMUX = (ADMUX & 0xE0) | (adc & 0x07);
     ADCSRA |= (1 << ADSC); //  Запускаем АЦП
-    adc++;
+    
   }
   /*
 
@@ -233,58 +222,4 @@ private:
       readingInBufferADC();
   }
 
-  struct RegisterLocation {
-    volatile uint8_t *port;
-    volatile uint8_t *ddr;
-    uint8_t pin;
-  };
-
-#define REGISTERINSIZE 16
-  const RegisterLocation RegistersIn[REGISTERINSIZE] = {
-      {&PORTJ, &DDRJ, PJ0}, 
-      {&PORTJ, &DDRJ, PJ1}, 
-      {&PORTJ, &DDRJ, PJ2},
-      {&PORTJ, &DDRJ, PJ3}, 
-      {&PORTJ, &DDRJ, PJ4}, 
-      {&PORTJ, &DDRJ, PJ5},
-      {&PORTJ, &DDRJ, PJ6}, 
-      {&PORTJ, &DDRJ, PJ7}, 
-      {&PORTA, &DDRA, PJ7},
-      {&PORTA, &DDRA, PJ6}, 
-      {&PORTA, &DDRA, PJ5}, 
-      {&PORTA, &DDRA, PJ4},
-      {&PORTA, &DDRA, PJ3}, 
-      {&PORTA, &DDRA, PJ2}, 
-      {&PORTA, &DDRA, PJ1},
-      {&PORTA, &DDRA, PJ0},
-  };
-
-  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD2};
-
-
-  void ledStartup() {
-    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-      *RegistersIn[i].ddr |= (1 << RegistersIn[i].pin);
-    }
-
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
-    *pinRXIn.port |= (1 << pinRXIn.pin);
-
-    for (uint8_t z = 0; z < 7; z++) {
-      for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-        *RegistersIn[i].port ^= (1 << RegistersIn[i].pin);
-
-        delay(210 / REGISTERINSIZE);
-      }
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-
-
-    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-      *RegistersIn[i].ddr &= ~(1 << RegistersIn[i].pin);
-    }
-  }
 };

@@ -154,18 +154,6 @@ public:
     }
   }
 
-  void ledError() {
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
-
-    for (int i = 0; i < 30; i++) {
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-      if (i % 6 == 0)
-        delay(600);
-      delay(100);
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-  }
 
 private:
   ////////////// ADC //////////////
@@ -277,27 +265,4 @@ private:
       readingInBufferADC();
   }
 
-  struct RegisterLocation {
-    volatile uint8_t *port;
-    volatile uint8_t *ddr;
-    uint8_t pin;
-  };
-
-  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD2};
-
-  void ledStartup() {
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
-
-
-    *pinRXIn.port |= (1 << pinRXIn.pin);
-
-    for (uint8_t z = 0; z < 7; z++) {
-      delay(36 * 7);
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-
-  }
 };

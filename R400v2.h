@@ -36,18 +36,7 @@ public:
     //PORTC = (PORTC & 0xEF) | (x & 0x10); // pc4 out
   }
 
-  void ledError() {
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
 
-    for (int i = 0; i < 30; i++) {
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-      if (i % 6 == 0)
-        delay(600);
-      delay(100);
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-  }
 private:
   void setPorts() {
     DDRC = 0b01010000;
@@ -56,43 +45,4 @@ private:
     PORTC = 0b0100000;
   }
 
-  
-  struct RegisterLocation {
-    volatile uint8_t *port;
-    volatile uint8_t *ddr;
-    uint8_t pin;
-  };
-
-#define REGISTERINSIZE 3
-  const RegisterLocation RegistersIn[REGISTERINSIZE] = {
-      {&PORTC, &DDRC, PC3},
-      {&PORTC, &DDRC, PC2},
-      {&PORTC, &DDRC, PC1},
-  };
-
-  const RegisterLocation pinRXIn = {&PORTD, &DDRD, PD0};
-
-  void ledStartup() {
-    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-      *RegistersIn[i].ddr |= (1 << RegistersIn[i].pin);
-    }
-
-    *pinRXIn.ddr |= (1 << pinRXIn.pin);
-    *pinRXIn.port |= (1 << pinRXIn.pin);
-
-    for (uint8_t z = 0; z < 7; z++) {
-      for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-        *RegistersIn[i].port ^= (1 << RegistersIn[i].pin);
-
-        delay(180 / REGISTERINSIZE);
-      }
-      *pinRXIn.port ^= (1 << pinRXIn.pin);
-    }
-
-    *pinRXIn.ddr &= ~(1 << pinRXIn.pin);
-
-    for (uint8_t i = 0; i < REGISTERINSIZE; i++) {
-      *RegistersIn[i].ddr &= ~(1 << RegistersIn[i].pin);
-    }
-  }
 };

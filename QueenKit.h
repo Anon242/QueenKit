@@ -1,22 +1,41 @@
-
 #pragma once
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 
+// У 2560 нет Serial, есть Serial1, Serial2 и Serial3
+#if defined(__AVR_ATmega2560__)
+  #define QUEENSERIAL Serial1
+#elif defined(__AVR_ATmega328P__)
+  #define QUEENSERIAL Serial
+#else
+  #error Неизвестный микроконтроллер
+#endif
+
+// Программный переключатель
+#ifndef SWITCH
+  #warning SWITCH: program switch disabled
+  #define SWITCH false
+#endif
+
+// Если есть define плеера
+#ifdef DF_PLAYER
+  #warning DF_PLAYER initial
+  #include <QueenPlayer.h> 
+  QueenPlayer player;
+  // Если нет было значений ниже, ставим дефолтные
+  #ifndef DF_PLAYER_TRACK 
+    #warning DF_PLAYER_TRACK: default
+    #define DF_PLAYER_TRACK 16
+    #define DF_PLAYER_VOLUME 26
+  #endif
+#endif
+
+// Времянка из за ошибки
+#ifdef DF_PLAYERTRACK
+#error DF_PLAYERTRACK > DF_PLAYER_TRACK
+#endif
+// Массивы
 #define ROUND_MASK 63
 #define SNAKE_LENGTH 35
-
-#if defined(__AVR_ATmega2560__)
-#define QUEENSERIAL Serial1
-#elif defined(__AVR_ATmega328P__)
-#define QUEENSERIAL Serial
-#else
-#error Неизвестный микроконтроллер
-#endif
-
-#ifndef SWITCH
-#define SWITCH false
-#endif
 
 /**
  * @brief Класс для работы с нашей системой связи по шине
@@ -27,6 +46,7 @@
  */
 class QueenKit {
 protected:
+
   /**
    * @brief Назначаем слушатель
    *
@@ -42,6 +62,10 @@ public:
   void init() {
     delay(1000);
     QUEENSERIAL.begin(250000); // RS423
+      // Плеер
+    #ifdef DF_PLAYER
+      player.init();
+    #endif
   }
   
   /**
@@ -96,6 +120,10 @@ public:
   }
 
 private:
+
+
+
+
   /**
    * @brief Ссылка на метод который будет вызываться когда придут данные
    * @warning вызывать setBits() и getBits() только в методе на который
@@ -152,6 +180,11 @@ private:
     }
     // Вызываем ссылку на функцию которую мы указали при init()
     (*atatchedF)();
+      // Плеер
+     #ifdef DF_PLAYER
+      player.play(getBits(DF_PLAYER_TRACK,10),getBits(DF_PLAYER_VOLUME,10));
+     #endif
+    
     // Уходим в функцию формирования выходного массива
     formation_out();
 
@@ -257,92 +290,32 @@ inline void transmit() {
 };
 
 
-
-
-class QueenPlayer{
-    public:
-
-    QueenPlayer(){
-        #if defined _R400v2
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R400v3
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R404v4
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R404v5
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R408v2
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R408v3
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _R416
-            playerSerial = new SoftwareSerial(3, 4); // 3 - 4
-        #elif defined _QueenUnisense4
-            // Serial 2
-        #elif defined _QueenUnisense3v1
-            playerSerial = new SoftwareSerial(40, 41);
-        #else 
-            #error Плата не поддерживается.
-        #endif
-    }
-
-    void init(){
-        playerBegin();
-    }
-
-    void play(uint8_t track, uint8_t volume){
-        if (player_track != track) {
-          player_track = track;
-          if (player_track > 0)
-            player(0x03, player_track);
-          else if (player_track == 0)
-            player(0x0E, 0x00);
-        }
-        if (player_volume != volume) {
-          player_volume = volume;
-          player(0x06, player_volume < 30 ? player_volume : 30);
-        }
-    }
-
-    private:
-    SoftwareSerial* playerSerial; 
-    uint8_t player_track = 0;
-    uint8_t player_volume = 0;
-
-    
-    void playerBegin(){
-        #if defined _QueenUnisense4
-            Serial2.begin(9600);
-        #else
-            playerSerial->begin(9600); // init player
-        #endif
-    }
-
-    uint8_t player_buffer[10] = {
-        0x7E, // [0] start byte, always 0x7E
-        0xFF, // [1] version, always 0xFF
-        0x06, // [2] length, always 0x06
-        0x00, // [3]*command: 0x03 - track, 0x06 - volume, 0x0E - pause
-        0x00, // [4] feedback, lways 0x00
-        0x00, // [5] high byte, always 0x00
-        0x00, // [6]*low byte (parameter) track or volume
-        0xFE, // [7] ???
-        0x00, // [8]*checksumm
-        0xEF  // [9] end byte, always 0xEF
-    };
-
-    void player( uint8_t command, uint8_t value )
-{
-  player_buffer[ 3 ] = command;
-  player_buffer[ 6 ] = value;
-  uint8_t checksum = 0;
-  for ( int i = 2; i < 8; i ++ ) checksum += player_buffer[i];
-  player_buffer[8] = (uint8_t) ~checksum;
-  
-    #if defined _QueenUnisense4
-        Serial2.write(player_buffer, 10);
-    #else
-        playerSerial->write( player_buffer, 10 );
-    #endif
-} 
-};       
+       
+/*
+*         
+*         ⠀⠀⠀⠀⠀⠀⠀⠀⢠⣀⠀⠀⠀⠠⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⣨⣿⣶⣤⣀⠙⢯⠓⢄⠀⢹⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⢹⣌⡧⡈⠹⡗⢤⣳⡈⢧⢠⠋⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⡎⠹⡴⠋⠉⢉⣶⣽⣷⣼⣯⠴⠋⠐⣢⠤⠔⠒⠊⣉⣽⡿⣶⡶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⣧⠞⠀⣠⠞⠛⠋⠉⠈⠁⠀⠀⠀⠀⠀⢀⣠⠔⠋⠁⣼⣁⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⢀⣴⣫⣴⠋⠁⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠘⣏⠀⠀⠀⠀⣤⠋⢹⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠉⡝⢹⠃⡀⠀⠀⡜⠀⠀⠀⠀⠀⢧⠀⠀⠀⡌⠳⡀⠀⢠⡼⠦⣼⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⡜⢀⡾⢚⣇⣀⣼⡇⠀⣆⠀⠀⠀⢸⡄⠀⠀⣷⠀⠸⡖⠾⡄⢀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⡼⢰⠂⣰⠋⠁⢠⣿⡟⢺⡹⣄⡤⠴⠛⢻⣦⣄⣿⢦⠀⡇⢀⠀⠈⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⢠⠃⡇⠀⣽⣄⠀⠈⣿⡇⣀⠿⡏⠀⠀⠀⢸⣿⡏⠹⡌⠻⠃⢸⡄⠀⠸⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⣸⣸⡁⠀⢸⡇⠉⠑⢻⠋⠁⠀⠙⣄⡀⠀⠘⣿⢁⣰⠇⠀⠀⣸⠀⠀⠀⢷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠛⢹⡇⠀⢀⣽⣄⠀⠘⠲⡶⠧⣄⣠⠏⠉⠛⠉⠉⢸⠀⠀⢠⡇⠀⢠⣄⠘⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠘⣷⠴⠋⢿⣿⣷⣦⣄⣉⣉⠉⠀⠀⣀⣀⣤⣴⣿⠀⢀⣾⣄⠀⡼⠀⠉⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⠘⠟⢻⣿⣟⠛⠻⢟⠛⠻⢿⣿⢿⣿⣿⡠⠊⠻⠉⠻⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⠀⢠⠞⡸⠃⠀⠀⠀⠳⣄⣀⡬⢲⠉⠉⠀⠀⠀⠀⠀⢀⡀⠀⠀⠀⠀Nya⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⢀⡴⠿⢲⠇⠀⠀⠀⠀⠀⢹⣞⣀⣈⡄⠀⠀⠀⠀⠀⢸⡁⠈⠱⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⢰⠋⠀⠀⡎⠀⠀⠀⠀⠀⣠⠜⠋⠹⢿⠃⠀⠀⠀⠀⠀⠀⠉⠱⡄⠈⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠈⢧⣀⣠⡧⣄⣀⣀⣀⣠⡇⠀⠀⠀⠘⣧⡀⠀⠀⠀⠀⠀⠀⢠⠃⢠⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⢠⣿⣴⣏⢀⡿⠉⠉⢷⣤⣀⣀⡜⢣⣈⠑⠒⠆⠤⠐⠚⠁⣠⠞⠀⠀⠀⠀⠀⣀⣠⣴⣤⣤⣤⡀⣤⣤⣄⣀
+*         ⠀⠀⠀⠀⠀⠈⠉⠉⠷⠾⣿⣄⣠⣿⡟⠟⠃⠀⠀⠈⠙⠒⠂⠒⠒⠒⠋⣀⣀⣤⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+*         ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣾⣿⣿⣿⣿⣶⣄⠀⠀⢀⣀⣤⣤⣶⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+*         ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣇⣀⣹⣿⣿⡿⠋⠀⠀⠚⣉⣩⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠻⠛⠛⠛⠋⣙⣋⣛⡋⠉⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⠀⠀⠀⣴⠋⠛⠻⣿⣿⣿⣷⣾⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⣿⣥⠀⠀⠀⡤⠤⠤⠶⠛⠋⠉⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⠀⠀⠸⣿⣀⠀⠀⢸⣯⣥⣶⣿⠿⠿⠟⠛⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*         ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+*/

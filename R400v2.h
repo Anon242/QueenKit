@@ -39,7 +39,7 @@ public:
 
 private:
   void setPorts() {
-    DDRC = 0b01010000;
+    DDRC = 0b01000000;
     DDRD |= 0b11110100;
     DDRB = 0b00100110;
     PORTC = 0b0100000;

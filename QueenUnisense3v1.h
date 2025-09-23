@@ -188,16 +188,6 @@ private:
     ADCSRA |= (1 << ADSC); //  Запускаем АЦП
     
   }
-  /*
-
-      adc = adc < 0 ? 15 : adc;
-    adcBuffer[(adc+1) % 16] = ADC; // Записываем значение в массив
-    ADCSRB = (ADCSRB & 0xF7) | (adc & 0x08);
-    ADMUX = (ADMUX & 0xE0) | (adc & 0x07);
-    ADCSRA |= (1 << ADSC); //  Запускаем АЦП
-    adc--;
-
-  */
 
   void setupADC() {
     // Настраиваем и включаем ADC

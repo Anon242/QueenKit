@@ -16,10 +16,11 @@
   #define SWITCH false
 #endif
 
+// QueenPlayer
+#include <QueenPlayer.h> 
 // Если есть define плеера
 #ifdef DF_PLAYER
   #warning DF_PLAYER initial
-  #include <QueenPlayer.h> 
   QueenPlayer player;
   // Если нет было значений ниже, ставим дефолтные
   #ifndef DF_PLAYER_TRACK 
@@ -81,48 +82,39 @@ public:
   /**
    * @brief Получить полезную нагрузку
    *
-   *  Получает uint32_t значение битов данных из шины
+   *  Получает uint64_t значение битов данных из шины
    *
    * @param arrPos С какой позиции получать биты
    * @param bits Сколько битов
-   * @return uint32_t
+   * @return uint64_t
    */
-  inline uint32_t getBits(uint32_t arrPos, uint32_t bits) {
-    uint32_t byteIndex = arrPos >> 3;
-    uint32_t bitIndex = arrPos & 7;
-
-    uint64_t chunk;
-    memcpy(&chunk, &inRPI[byteIndex], sizeof(uint64_t));
-
-    return (chunk >> bitIndex) & ((1ULL << bits) - 1);
-  }
+inline uint64_t getBits(uint64_t arrPos, uint64_t bits) {
+    uint64_t byteIndex = arrPos >> 3;
+    uint64_t bitIndex = arrPos & 7;
+    uint64_t chunk = *(uint64_t*)&inRPI[byteIndex];
+    return (chunk >> bitIndex) & ((1UL << bits) - 1);
+}
   /**
    * @brief Добавить данные в нагрузку шины
    *
    * @param bits Сколько битов
    * @param bytes Данные
    */
-  inline void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
-    uint32_t byteIndex = arrPos >> 3;
-    uint32_t bitIndex = arrPos & 7;
-
-    uint64_t chunk;
-    memcpy(&chunk, &dataBoard[byteIndex], sizeof(uint64_t));
-
-    const uint64_t mask = ((1ULL << bits) - 1) << bitIndex;
-    chunk = (chunk & ~mask) | ((bytes << bitIndex) & mask);
-
-    memcpy(&dataBoard[byteIndex], &chunk, sizeof(uint64_t));
-  }
+inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
+    uint64_t byteIndex = arrPos >> 3;  
+    uint64_t bitIndex = arrPos & 7;   
+    uint64_t* chunkPtr = (uint64_t*)&dataBoard[byteIndex];
+    uint64_t chunk = *chunkPtr;
+    uint64_t mask = ((1UL << bits) - 1) << bitIndex;
+    chunk = (chunk & ~mask) | ((value << bitIndex) & mask);
+    *chunkPtr = chunk;
+}
 
   void softReset() {
     asm volatile ("jmp 0");
   }
 
 private:
-
-
-
 
   /**
    * @brief Ссылка на метод который будет вызываться когда придут данные
@@ -136,61 +128,66 @@ private:
    *
    * @return uint8_t
    */
-  inline uint8_t head() { return (tail + SNAKE_LENGTH) & ROUND_MASK; }
+  inline uint8_t head() { return (tail + SNAKE_LENGTH) & ROUND_MASK; } // Нахуя нам собственно знать head если мы уже знаем длину массива?
 
   /**
    * @brief Получение нагрузки из шины
    * Почему priem? Так исторически сложилось
    */
   void priem() {
-    // Данных нет - выходим
-    if (!QUEENSERIAL.available())
-      return;
+    // Если данных нет - выходим
+    if (!QUEENSERIAL.available()) return;
+
     // Пишем в голову принятый байт
     uint8_t headIndex = head();
     roundBuffer[headIndex] = QUEENSERIAL.read();
 
-    // Eсли голова равна проценту и хвост равен звездочке то проверяем дальше
-    if (!((roundBuffer[headIndex] == 0x25) && (roundBuffer[tail] == 0x2A))) {
-      tailShift();
-      return;
+    // Проверяем начало и конец пакета
+    if (roundBuffer[headIndex] != 0x25 || roundBuffer[tail] != 0x2A) {
+        tailShift();
+        return;
     }
 
-    // Если совпадает айди запроса с нашим айди
+    // Проверяем ID
     const uint8_t busID = roundBuffer[(tail + 2) & ROUND_MASK];
     if (busID != id) {
-      tailShift();
-      return;
+        tailShift();
+        return;
     }
 
-    crcBuff[0] = busID;
+    // Подготовка данных для CRC
+    uint8_t* crcPtr = crcBuff;
+    *crcPtr++ = busID;
+
+    uint8_t* inRPIPtr = inRPI;
     const uint8_t tailSum = tail + 3;
 
-    // Высасываем полезные данные в отдельный массив
     for (int z = 0; z < 32; z++) {
-      uint8_t roundMaskIndex = (tailSum + z) & ROUND_MASK;
-      crcBuff[z + 1] = roundBuffer[roundMaskIndex];
-      inRPI[z] = roundBuffer[roundMaskIndex];
+        uint8_t byte = roundBuffer[(tailSum + z) & ROUND_MASK];
+        *crcPtr++ = byte;
+        *inRPIPtr++ = byte;
     }
 
-    // Если контрольная сумма соответствет то действуем дальше
+    // Проверка контрольной суммы
     if (roundBuffer[(tail + 1) & ROUND_MASK] != crc8(crcBuff, 33)) {
-      tailShift();
-      return;
+        tailShift();
+        return;
     }
-    // Вызываем ссылку на функцию которую мы указали при init()
+
+    // Вызываем функцию-обработчик
     (*atatchedF)();
-      // Плеер
-     #ifdef DF_PLAYER
-      player.play(getBits(DF_PLAYER_TRACK,10),getBits(DF_PLAYER_VOLUME,10));
-     #endif
-    
-    // Уходим в функцию формирования выходного массива
+
+    // Управление плеером
+    #ifdef DF_PLAYER
+    player.play(getBits(DF_PLAYER_TRACK, 10), getBits(DF_PLAYER_VOLUME, 10));
+    #endif
+
+    // Формируем выходной массив
     formation_out();
 
-    // Двигаем хвост змеи
+    // Двигаем хвост
     tailShift();
-  }
+}
 
   /**
    * @brief Двигаем хвост змеи на 1

@@ -23,17 +23,13 @@
   #warning DF_PLAYER initial
   QueenPlayer player;
   // Если нет было значений ниже, ставим дефолтные
-  #ifndef DF_PLAYER_TRACK 
+  #if !defined(DF_PLAYER_TRACK) || !defined(DF_PLAYER_VOLUME)
     #warning DF_PLAYER_TRACK: default
     #define DF_PLAYER_TRACK 16
     #define DF_PLAYER_VOLUME 26
   #endif
 #endif
 
-// Времянка из за ошибки
-#ifdef DF_PLAYERTRACK
-#error DF_PLAYERTRACK > DF_PLAYER_TRACK
-#endif
 // Массивы
 #define ROUND_MASK 63
 #define SNAKE_LENGTH 35
@@ -55,15 +51,18 @@ protected:
    */
   void attachFunction(void (*function)()) { atatchedF = function; }
 public:
-  uint8_t id; // ID Платы
+  /**
+  * @brief Id Платы
+  */
+  uint8_t id; 
   /**
    * @brief Запуск Serial
    *
    */
   void init() {
     delay(1000);
-    QUEENSERIAL.begin(250000); // RS423
-      // Плеер
+    QUEENSERIAL.begin(250000);
+    // Включение плеера
     #ifdef DF_PLAYER
       player.init();
     #endif
@@ -110,6 +109,9 @@ inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
     *chunkPtr = chunk;
 }
 
+  /**
+   * @brief Перезагрузка платы
+   */
   void softReset() {
     asm volatile ("jmp 0");
   }
@@ -246,20 +248,37 @@ inline void transmit() {
    *
    */
   uint8_t tail = 0;
+
+  /**
+   * @brief Массив на отправку в шину
+   */
   uint8_t outRPI[36] = {0x2A, 0x01, 0x10, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
                         0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
                         0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
                         0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x25};
   uint8_t dataBoard[32];
+    
+  /**
+   * @brief Массив полезной нагрузки из шины
+   */
   uint8_t inRPI[32] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+   
+   /**
+   * @brief Круговой буфер на Serial.read
+   */
   uint8_t roundBuffer[64];
+  
+  /**
+   * @brief crc буфер
+   */
   uint8_t crcBuff[33];
 
-  /// Заранее вычесленные crc8 с полиномом 0x31 (значение crc8 должно
-  /// начинатся с 0xFF)
+  /**
+   * @brief Заранее вычесленные crc8 с полиномом 0x31 (значение crc8 должно начинаться с 0xFF)
+   */
   const uint8_t crc8Table[256] = {
       0x0,  0x31, 0x62, 0x53, 0xc4, 0xf5, 0xa6, 0x97, 0xb9, 0x88, 0xdb, 0xea,
       0x7d, 0x4c, 0x1f, 0x2e, 0x43, 0x72, 0x21, 0x10, 0x87, 0xb6, 0xe5, 0xd4,

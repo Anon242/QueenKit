@@ -28,7 +28,7 @@ void onMessage()
   // Получаем буфер ADC
   uint16_t *adcBuffer = queen.inADC();
   for (uint8_t i = 0; i < 16; i++) {
-    uint8_t bitIndex = 36 + 10 * i;
+    uint8_t bitIndex = 16 + 10 * i;
     // Назначаем PWM из шины
     queen.pwmOuts(queen.getBits(bitIndex, 10), i + 1);
     // Отправляем данные ADC в шину

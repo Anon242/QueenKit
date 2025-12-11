@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-// бем
+
 // У 2560 нет Serial, есть Serial1, Serial2 и Serial3
 #if defined(__AVR_ATmega2560__)
   #define QUEENSERIAL Serial1

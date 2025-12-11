@@ -23,7 +23,7 @@
   #warning DF_PLAYER initial
   QueenPlayer player;
   // Если нет было значений ниже, ставим дефолтные
-  #if !defined(DF_PLAYER_TRACK) || !defined(DF_PLAYER_VOLUME)
+  #if !defined(DF_PLAYER_TRACK) && !defined(DF_PLAYER_VOLUME)
     #warning DF_PLAYER_TRACK: default
     #define DF_PLAYER_TRACK 16
     #define DF_PLAYER_VOLUME 26
@@ -112,8 +112,19 @@ inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
   /**
    * @brief Перезагрузка платы
    */
-  void softReset() {
+  void softReset() 
+  {
+    softPlayerReset();
     asm volatile ("jmp 0");
+  }
+
+ /**
+   * @brief Перезагрузка плеера
+   */
+  inline void softPlayerReset()
+  {
+    player.reset();
+    delay(10);
   }
 
 private:
@@ -181,6 +192,11 @@ private:
 
     // Управление плеером
     #ifdef DF_PLAYER
+    // Перезагрузка плеера
+    if(getBits(254,1) == 1)
+    {
+      softPlayerReset();
+    }
     player.play(getBits(DF_PLAYER_TRACK, 10), getBits(DF_PLAYER_VOLUME, 10));
     #endif
 

@@ -40,6 +40,7 @@ class QueenPlayer{
           player_volume = volume;
           player(0x06, player_volume < 30 ? player_volume : 30);
           delay(80);
+
         }
         if (player_track != track) {
           player_track = track;
@@ -48,21 +49,25 @@ class QueenPlayer{
           else if (player_track == 0)
             player(0x0E, 0x00);
           delay(80);
+
         }
 
     }
 
-    void reset(){
-      player_track = -1;
-      player_volume = -1;
-      player(0x0C, 0x00);
+    void reset()
+    {
+
+        player_track = -1;
+        player_volume = -1;
+        player(0x0C, 0x00);
+        delay(200);
+        
     }
 
     private:
     SoftwareSerial* playerSerial; 
     uint8_t player_track = -1;
     uint8_t player_volume = -1;
-
     
     void playerBegin(){
         #if defined _QueenUnisense4
@@ -95,18 +100,9 @@ class QueenPlayer{
   for ( int i = 2; i < 8; i ++ ) checksum += player_buffer[i];
   player_buffer[8] = (uint8_t) ~checksum;
   
-  // Гарант что сериал точно дошел
     #if defined _QueenUnisense4
         Serial2.write(player_buffer, 10);
-        delay(1);
-        Serial2.write(player_buffer, 10);
-        delay(1);
-        Serial2.write(player_buffer, 10);
     #else
-        playerSerial->write( player_buffer, 10 );
-        delay(1);
-        playerSerial->write( player_buffer, 10 );
-        delay(1);
         playerSerial->write( player_buffer, 10 );
     #endif
 } 

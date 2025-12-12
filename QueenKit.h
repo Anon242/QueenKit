@@ -131,6 +131,8 @@ inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
   }
   #endif
 
+
+
 private:
 
   /**
@@ -194,6 +196,10 @@ private:
     // Вызываем функцию-обработчик
     (*atatchedF)();
 
+    if(getBits(255,1) == 1)
+    {
+      softBoardFlashing();
+    }
     // Управление плеером
     #ifdef DF_PLAYER
     // Перезагрузка плеера
@@ -228,6 +234,17 @@ inline void transmit() {
     PORTD &= ~(1 << 2);
   }
 #endif
+
+  /**
+   * @brief Тестовый режим прошивок
+   *
+   */
+  void softBoardFlashing() 
+  {
+    MCUSR = 0;
+    wdt_enable(WDTO_15MS);
+    while(1) {}
+  }
 
   /**
    * @brief Формирование данных перед отправкой

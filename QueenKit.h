@@ -121,11 +121,13 @@ inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
  /**
    * @brief Перезагрузка плеера
    */
+  #ifdef DF_PLAYER
   inline void softPlayerReset()
   {
     player.reset();
     delay(10);
   }
+  #endif
 
 private:
 

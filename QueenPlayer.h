@@ -35,33 +35,36 @@ class QueenPlayer{
         playerBegin();
     }
 
-    void play(uint8_t track, uint8_t volume){
-        if (player_volume != volume) {
+    void play(uint8_t track, uint8_t volume)
+    {
+        bool trackDelay = false;
+        if (player_volume != volume) 
+        {
           player_volume = volume;
           player(0x06, player_volume < 30 ? player_volume : 30);
-          delay(80);
-
+          trackDelay = true;
         }
-        if (player_track != track) {
+
+        if(trackDelay)
+            delay(105);
+
+        if (player_track != track) 
+        {
           player_track = track;
           if (player_track > 0)
             player(0x03, player_track);
           else if (player_track == 0)
             player(0x0E, 0x00);
-          delay(80);
-
         }
 
     }
 
     void reset()
     {
-
         player_track = -1;
         player_volume = -1;
         player(0x0C, 0x00);
         delay(200);
-        
     }
 
     private:

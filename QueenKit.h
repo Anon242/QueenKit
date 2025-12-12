@@ -114,7 +114,9 @@ inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
    */
   void softReset() 
   {
+    #ifdef DF_PLAYER
     softPlayerReset();
+    #endif
     asm volatile ("jmp 0");
   }
 

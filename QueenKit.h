@@ -68,7 +68,7 @@ public:
     player.init();
     delay(300);
     softPlayerReset();
-    delay(100);
+    delay(300);
 
     #endif
   }

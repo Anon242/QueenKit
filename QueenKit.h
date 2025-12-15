@@ -64,7 +64,12 @@ public:
     QUEENSERIAL.begin(250000);
     // Включение плеера
     #ifdef DF_PLAYER
-      player.init();
+    delay(100);
+    player.init();
+    delay(300);
+    softPlayerReset();
+    delay(100);
+
     #endif
   }
   

@@ -45,16 +45,16 @@ class QueenPlayer{
           trackDelay = true;
         }
 
-        if(trackDelay)
-            delay(105);
-
         if (player_track != track) 
         {
-          player_track = track;
-          if (player_track > 0)
-            player(0x03, player_track);
-          else if (player_track == 0)
-            player(0x0E, 0x00);
+            if(trackDelay)
+                delay(105);
+
+            player_track = track;
+            if (player_track > 0)
+                player(0x03, player_track);
+            else if (player_track == 0)
+                player(0x0E, 0x00);
         }
 
     }

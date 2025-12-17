@@ -95,9 +95,10 @@ public:
 inline uint64_t getBits(uint64_t arrPos, uint64_t bits) {
     uint64_t byteIndex = arrPos >> 3;
     uint64_t bitIndex = arrPos & 7;
-    uint64_t chunk = *(uint64_t*)&inRPI[byteIndex];
-    return (chunk >> bitIndex) & ((1UL << bits) - 1);
+    uint64_t chunk = *(reinterpret_cast<const uint64_t*>(&inRPI[byteIndex]));
+    return (chunk >> bitIndex) & ((1ULL << bits) - 1);
 }
+
   /**
    * @brief Добавить данные в нагрузку шины
    *
@@ -105,13 +106,11 @@ inline uint64_t getBits(uint64_t arrPos, uint64_t bits) {
    * @param bytes Данные
    */
 inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
-    uint64_t byteIndex = arrPos >> 3;  
-    uint64_t bitIndex = arrPos & 7;   
-    uint64_t* chunkPtr = (uint64_t*)&dataBoard[byteIndex];
-    uint64_t chunk = *chunkPtr;
-    uint64_t mask = ((1UL << bits) - 1) << bitIndex;
-    chunk = (chunk & ~mask) | ((value << bitIndex) & mask);
-    *chunkPtr = chunk;
+    uint64_t byteIndex = arrPos >> 3;
+    uint64_t bitIndex = arrPos & 7;
+    uint64_t* chunkPtr = reinterpret_cast<uint64_t*>(&dataBoard[byteIndex]);
+    uint64_t mask = ((1ULL << bits) - 1) << bitIndex;
+    *chunkPtr = (*chunkPtr & ~mask) | ((value << bitIndex) & mask);
 }
 
   /**

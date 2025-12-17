@@ -10,7 +10,7 @@
   #error Неизвестный микроконтроллер
 #endif
 
-// Программный переключатель
+// Программный переключатель, поддержка плат старых версий
 #ifndef SWITCH
   #warning SWITCH: program switch disabled
   #define SWITCH false

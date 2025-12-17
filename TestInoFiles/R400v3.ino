@@ -12,7 +12,8 @@ Board queen(DEVICE_ID);
 //      Notes     : 
 //                : 
 //=================================================================================== 
-
+int msgCount = 0;
+long ms, oldMS;
 void setup() 
 {
   queen.init(onMessage); 
@@ -24,6 +25,12 @@ void loop()
 }
 
 void onMessage() {
-  queen.out(queen.getBits(0, 4));
-  queen.setBits(0, 3, queen.in());
+  queen.setBits(0, 64, queen.getBits(0, 64));
+  msgCount++;
+  ms = millis();
+  if (ms - oldMS > 1000){
+    queen.setBits(200,16,msgCount);
+    msgCount = 0;
+    oldMS = ms;
+  }
 }

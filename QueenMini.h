@@ -1,66 +1,26 @@
 #define LENGHT_ARRAY_OUT 36 //  Длина сообщения
 #define LENGHT_ARRAY_IN 64  //  Длина кольцевого массива (буфера)
-#define ROUND_MASK                                                             \
-  63 //  Маска для предотвращения выхода за пределы кольцевого массива
+#define ROUND_MASK 63 //  Маска для предотвращения выхода за пределы кольцевого массива
 #define ID_MASK 31
-#define ADC_MASK 15
-#define SNAKE_LENGTH 35 //  Значения для постоянного контроля отставания чтения
-#define SNAKE_LENGTHRPI                                                        \
-  39                 //  Значения для постоянного контроля отставания чтения RPI
-#define CRC8_CELL 1  //  Смещение для обнаружения контрольной суммы
-#define ID_CELL 2    //  Смещение для обнаружения id устройства
-#define DEVICE_ID 16 //  номер ID данного устройства
-#define RPI 1
-#define RAPTOR 0
-#define DEL 1
-#define ADD 0
-#define WATCH_DOG 100
-
-#define STEP_2048 0xFFFFF800UL //  Шаги в миллисекундах для таймер счетчика
-#define STEP_1024 0xFFFFF400UL
-#define STEP_128 0xFFFFFF80UL
-#define STEP_8 0xFFFFFFF8UL
-#define STEP_4 0xFFFFFFF4UL
-#define STEP_2 0xFFFFFFF2UL
+#define SNAKE_LENGTH 35
+#define SNAKE_LENGTHRPI 35
 
 uint8_t dataRPI[32][32];    //  Массив данных, полученных от RASPBERRYPI
 uint8_t dataRaptor[32][32]; //  Массив данных, полученных от внешних плат R4
-                            //  (Raptor)
 
-uint8_t telomereRPI[32];    //  Массив рейтинга данных отправляемых RPI
-uint8_t telomereRaptor[32]; //  Массив сроков жизни данных отправляемых платам
-                            //  R4 (Raptor)
-
-uint8_t sendstring[40] = {0};
-// 0     1      2
-uint8_t tail = 0; // *    crc    id
+uint8_t tail = 0; 
 uint8_t outRaptors[LENGHT_ARRAY_OUT] = {
     0x2A, 0x01, 0x57, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x25};
 uint8_t roundBuffer[LENGHT_ARRAY_IN];
 uint8_t crcBuff[34];
-
-static volatile unsigned long t2 = 0, p2 = 0;
-volatile int watchDog = WATCH_DOG;
-
 uint8_t tailrpi = 0;
-// public sta           0      1     2    3     4    5     6      7     8     9
-// 10    11    12    13    14    15    16    17    18    19    20    21    22 23
-// 24    25    26    27    28    29    30    31    32    33    34    35    36
-//                     Q     B     R    SIZE  COUN   ID   TIME  CRC  |   RELAY
-//                     |                                                    16
-//                     PWM CHANELS |                        RESERVED BYTES
 uint8_t inRPI[40] = {0x51, 0x42, 0x52, 0x20, 0x00, 0x10, 0x00, 0x00,
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-// public sta           0      1     2    3     4    5     6      7     8     9
-// 10    11    12    13    14    15    16    17    18    19    20    21    22 23
-// 24    25    26    27    28    29    30    31    32    33    34    35    36
-//                     Q     B     A    SIZE  COUN   ID   TIME  CRC  |   DINS |
-//                     ADINS |                        RESERVED BYTES
 uint8_t outRPI[40] = {0x51, 0x42, 0x41, 0x20, 0x00, 0x10, 0x00, 0x00,
                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -68,17 +28,9 @@ uint8_t outRPI[40] = {0x51, 0x42, 0x41, 0x20, 0x00, 0x10, 0x00, 0x00,
                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 uint8_t roundBufferRPI[LENGHT_ARRAY_IN];
 
-uint32_t in_state = 0;
-uint32_t out_state = 0;
 int stringSumm = 0;
 
 int currID = 0;
-uint32_t telomereRaptorMap = 0;
-uint32_t telomereRPiMap = 0;
-int adc = 0;
-int counterADSC = 0;
-uint8_t DINS1 = 0, DINS2 = 0;
-uint32_t valueADC = 0;
 
 const uint8_t crc8Table[256] = {
     0x0,  0x31, 0x62, 0x53, 0xc4, 0xf5, 0xa6, 0x97, 0xb9, 0x88, 0xdb, 0xea,
@@ -105,44 +57,36 @@ const uint8_t crc8Table[256] = {
     0xff, 0xce, 0x9d, 0xac,
 };
 
-/**
- * @brief Получить полезную нагрузку
- *
- *  Получает uint32_t значение битов данных из шины
- *
- * @param arrPos С какой позиции получать биты
- * @param bits Сколько битов
- * @return uint32_t
- */
-inline uint32_t getBits(uint32_t arrPos, uint32_t bits) {
-  uint32_t byteIndex = arrPos >> 3;
-  uint32_t bitIndex = arrPos & 7;
-
-  uint64_t chunk;
-  memcpy(&chunk, &dataRPI[16][byteIndex], sizeof(uint64_t));
-
-  return (chunk >> bitIndex) & ((1ULL << bits) - 1);
-}
-/**
- * @brief Добавить данные в нагрузку шины
- *
- * @param bits Сколько битов
- * @param bytes Данные
- */
-inline void setBits(uint32_t arrPos, uint32_t bits, uint32_t bytes) {
-  uint32_t byteIndex = arrPos >> 3;
-  uint32_t bitIndex = arrPos & 7;
-
-  uint64_t chunk;
-  memcpy(&chunk, &dataRaptor[16][byteIndex], sizeof(uint64_t));
-
-  const uint64_t mask = ((1ULL << bits) - 1) << bitIndex;
-  chunk = (chunk & ~mask) | ((bytes << bitIndex) & mask);
-
-  memcpy(&dataRaptor[16][byteIndex], &chunk, sizeof(uint64_t));
+  /**
+   * @brief Получить полезную нагрузку
+   *
+   *  Получает uint64_t значение битов данных из шины
+   *
+   * @param arrPos С какой позиции получать биты
+   * @param bits Сколько битов
+   * @return uint64_t
+   */
+inline uint64_t getBits(uint64_t arrPos, uint64_t bits) {
+    uint64_t byteIndex = arrPos >> 3;
+    uint64_t bitIndex = arrPos & 7;
+    uint64_t chunk = *(reinterpret_cast<const uint64_t*>(&dataRPI[16][byteIndex]));
+    return (chunk >> bitIndex) & ((1ULL << bits) - 1);
 }
 
-uint16_t adcBuffer[6];
+  /**
+   * @brief Добавить данные в нагрузку шины
+   *
+   * @param bits Сколько битов
+   * @param bytes Данные
+   */
+inline void setBits(uint64_t arrPos, uint64_t bits, uint64_t value) {
+    uint64_t byteIndex = arrPos >> 3;
+    uint64_t bitIndex = arrPos & 7;
+    uint64_t* chunkPtr = reinterpret_cast<uint64_t*>(&dataRaptor[16][byteIndex]);
+    uint64_t mask = ((1ULL << bits) - 1) << bitIndex;
+    *chunkPtr = (*chunkPtr & ~mask) | ((value << bitIndex) & mask);
+}
+
 
 /**
  * @brief Метод для получения контрольной суммы
@@ -161,95 +105,14 @@ inline uint8_t crc8(const uint8_t *data, uint8_t length) {
 }
 
 void setup() {
-  startSetupPWM();
-  startSetupADC(); //  Настройка АЦП
-
   Serial1.begin(250000);
   Serial2.begin(115200);
-
-
-  telomereRPiMap |= ((uint32_t)1 << DEVICE_ID);
 }
-void startSetupPWM(){
-  TCCR2A |= (1 << WGM20) | (1 << COM2B1);
-  OCR2B = 0;
-  TCCR5A |= (1 << WGM50) | (1 << COM5B1) | (1 << COM5A1) | (1 << COM5C1);
-  OCR5A = 0;
-  OCR5B = 0;
-  OCR5C = 0;
-}
+
 void loop() {
-  while (1) {
     priemrpi();
-    priem();
-
-    if (telomereRaptorMap)
-      dogTimer(); // если серверу нужна хоть одна плата то запускаем таймер
-  }
 }
 
-inline void dogTimer() {
-  t2 = millis();
-  if (((t2 & STEP_2) != (p2 & STEP_2))) {
-    if (watchDog)
-      watchDog--; // если сторожевая собака еще не разозлилась то дразним ее
-    else          // если собака гавкает то принимаем меры
-    {
-      telomerases(RPI, currID, DEL); // наказываем не ответившую плату снижением
-                                     // ее рейтинга на единицу
-      nextID();                      // ищем следующую живую плату
-      raptorOut(currID); // отправляем запрос следующей найденной плате
-      telomerases(RAPTOR, currID, DEL); // отнимаем одну жизнь у платы которой
-                                        // только что отправили запрос
-      watchDog = WATCH_DOG; // подкармливаем и успокаиваем сторожевую собаку
-    }
-    p2 = t2;
-  }
-}
-
-inline void telomerases(uint8_t board, uint8_t IDs, uint8_t operation) {
-  if (board) // RPI
-  {
-    if (operation) // DEL
-    {
-      if (telomereRPI[IDs])
-        telomereRPI[IDs]--; // снижаем рейтинг не ответившей плате на единицу
-      else
-        telomereRPiMap &=
-            ~((uint32_t)1 << IDs); // если плата оборзела и вообще не отвечает
-                                   // то запрещаем ей общаться с RPI
-    } else                         // ADD
-    {
-      telomereRPI[IDs] = 5; // восстанавливаем рейтинг платы
-      telomereRPiMap |=
-          ((uint32_t)1 << IDs); // даем разрешение плате общаться с RPI
-    }
-  } else // RAPTOR
-  {
-    if (operation) // DEL
-    {
-      if (telomereRaptor[IDs])
-        telomereRaptor[IDs]--; // если плата еще нужна серверу то отнимаем у нее
-                               // одну жизнь
-      else
-        telomereRaptorMap &=
-            ~(
-                (uint32_t)1
-                << IDs); // если сервер бросил плату и она стала совсем ненужна
-                         // и жизни у нее кончились то хороним ее совсем
-    } else               // ADD
-    {
-      telomereRaptor[IDs] = 20; // восстанавливаем все жизни плате
-      telomereRaptorMap |= ((uint32_t)1 << IDs); // объявляем плату живой
-    }
-  }
-}
-
-inline void nextID() {
-  do
-    currID = ++currID & ID_MASK;
-  while (!(telomereRaptorMap & ((uint32_t)1 << currID)));
-}
 
 /**
  * @brief Двигаем хвост змеи на 1
@@ -267,6 +130,7 @@ inline uint8_t getControlSumm() {
       stringSumm += roundBufferRPI[(tailrpi + i) & ROUND_MASK];
   return stringSumm;
 }
+bool aa = true;
 void priemrpi() {
 
   // Данных нет - выходим
@@ -292,19 +156,27 @@ void priemrpi() {
   // Считываем id устройства
   uint8_t id = roundBufferRPI[(tailrpi + 5) & ROUND_MASK];
 
-  // Восстанавливаем все жизни плате к которой обратился RPI
-  if (id != DEVICE_ID)
-    telomerases(RAPTOR, id, ADD);
-
   // Начинаем доить из RPI полезные данные для платы
-  memcpy(&dataRPI[id], &roundBufferRPI[(tailrpi + 8) & ROUND_MASK], 32);
+  // А мы будем не доить, а сразу отправлять на нужную плату 
+  // Тут короче отправим и ждем, как только ответ пришел, отправим обратно RPI
+  outRaptors[2] = id;
+  crcBuff[0] = id; //  2 байт ID устройства
+currID = id;
+  memcpy(&outRaptors[3], &roundBufferRPI[(tailrpi + 8) & ROUND_MASK], 32);
+  memcpy(&crcBuff[1], &roundBufferRPI[(tailrpi + 8) & ROUND_MASK], 32);
 
-  if (telomereRPiMap & ((uint32_t)1 << id)) {
-    // Если плата хорошо себя вела то отправляем ответ
-    // малине на запрошенные данные об этой плате
-    uint8_t counter = roundBufferRPI[(tailrpi + 4) & ROUND_MASK];
-    rpiOut(id, counter);
-  }
+  outRaptors[1] = crc8(crcBuff, 33); 
+  Serial1.write(outRaptors, LENGHT_ARRAY_OUT);
+
+// где то тут мы должны подождать ответ
+aa = true;
+while(aa){
+    priem();
+}
+
+  uint8_t counter = roundBufferRPI[(tailrpi + 4) & ROUND_MASK];
+  rpiOut(id, counter);
+  
 
   tailRpiShift();
 }
@@ -322,7 +194,7 @@ void priem() {
   roundBuffer[headIndex] = Serial1.read();
 
   // Eсли голова равна проценту и хвост равен звездочке то проверяем дальше
-  if (!((roundBuffer[headIndex] == 0x25) & (roundBuffer[tail] == 0x2A))) {
+  if (!((roundBuffer[headIndex] == 0x25) && (roundBuffer[tail] == 0x2A))) {
     tailShift();
     return;
   }
@@ -350,37 +222,20 @@ void priem() {
     return;
   }
 
-  telomerases(RPI, currID, ADD); // наша плата умничка, ответила нам,
-  // восстанавливаем её рейтинг
-  watchDog = WATCH_DOG; // подкармливаем и успокаиваем сторожевую собаку
 
-  // если есть хоть одна живая плата то идем дальше
-  if (telomereRaptorMap) {
-    // ищем следующую живую плату
-    nextID();
-    // отправляем запрос следующей найденной плате
-    raptorOut(currID);
-    // отнимаем одну жизнь у платы которой только что отправили запрос
-    telomerases(RAPTOR, currID, DEL);
-  }
 
   // Двигаем хвост змеи
   tailShift();
+  aa = false;
 }
-/**
- * @brief Двигаем хвост змеи на 1
- */
+
 inline void tailShift() { tail = ((tail + 1) & ROUND_MASK); }
 
 inline uint8_t headrpi() {
-  return (tailrpi + SNAKE_LENGTHRPI) &
-         ROUND_MASK; // прибавляем к хвосту условную длину змейки и накладывем
-                     // маску от переполнения. Получаем индекс головы
+  return (tailrpi + SNAKE_LENGTHRPI) & ROUND_MASK; 
 }
 
 inline uint8_t head() {
-  // прибавляем к хвосту условную длину змейки и накладывем
-  // маску от переполнения. Получаем индекс головы
   return (tail + SNAKE_LENGTH) & ROUND_MASK;
 }
 
@@ -409,47 +264,3 @@ inline void raptorOut(uint8_t id) {
   Serial1.write(outRaptors, LENGHT_ARRAY_OUT);
 }
 
-void startSetupADC() {
-  ADCSRA &= ~(1 << ADPS0); //  Частота дискретизации
-  ADCSRA &= ~(1 << ADPS1); //  Частота дискретизации
-  ADCSRA |= (1 << ADPS2);  //  Частота дискретизации
-
-  ADMUX |= (1 << REFS0);  //  Vref напряжение питания МК
-  ADMUX &= ~(1 << ADLAR); //  Правостороннее выравнивание (стандартно)
-  ADCSRA |= (1 << ADEN);  // Включаем АЦП
-}
-
-inline void readADC() {
-  if (!(ADCSRA & (1 << ADSC))) {
-    adc = adc & ADC_MASK;
-    if (adc == 0) {
-      adc = 10;
-      for (uint8_t i = 0; i < 6; i++) {
-        setBits(16 + 10 * i, 10, adcBuffer[i]);
-      }
-    }
-    adcBuffer[adc - 10] = ADC; // Записываем значение в массив
-    ADCSRB = (ADCSRB & 0xF7) | (adc & 0x08);
-    ADMUX = (ADMUX & 0xE0) | (adc & 0x07);
-    ADCSRA |= (1 << ADSC); //  Запускаем АЦП
-    adc++;
-  }
-}
-
-inline void pwmOuts(uint8_t pwm, uint8_t out) {
-  switch (out) {
-  case 1:
-    OCR5B = pwm; // 1
-    break;
-  case 2:
-    OCR5A = pwm; // 2
-    break;
-  case 3:
-    OCR5C = pwm; // 3
-    break;
-  case 4:
-    OCR2B = pwm; // 4
-    OCR2B ? TCCR2A |= (1 << COM2B1) : TCCR2A &= ~(1 << COM2B1);
-    break;
-  }
-}

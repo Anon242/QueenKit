@@ -25,7 +25,7 @@ void loop()
 
 void onMessage() 
 {  
-  delay(8);
+  delay(80);
   // Получаем буфер ADC
   uint16_t *adcBuffer = queen.inADC();
   for (uint8_t i = 0; i < 16; i++) {

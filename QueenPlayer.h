@@ -67,6 +67,12 @@ class QueenPlayer{
         delay(200);
     }
 
+       // Normal = 0, Pop = 1, Rock = 2, Jazz = 3, Classic = 4, Bass = 5
+    void sendToPlayer(uint8_t code, uint8_t byte)
+    {
+        player(code, byte);
+    }
+
     private:
     SoftwareSerial* playerSerial; 
     uint8_t player_track = -1;

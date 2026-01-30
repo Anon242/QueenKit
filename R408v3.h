@@ -55,7 +55,7 @@ public:
     DDRC &= ~0b00001111; // portC IN
 
     PORTC = (PORTC & 0xEF) | uint8_t((x & 0x0100) >> 4);
-    PORTD = (PORTD & 0xF7) | uint8_t((x & 0x0200) >> 6);
+    PORTD = (PORTD & 0x08) | ((PORTD & 0xF7) | (uint8_t((x & 0x0200) >> 6) & 0xF7));
     PORTB = (PORTB & 0xDF) | uint8_t((x & 0x0400) >> 5);
   }
 

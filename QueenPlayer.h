@@ -38,7 +38,7 @@ class QueenPlayer{
     }
 
     void play(int16_t track, uint8_t volume)
-    {`
+    {
         bool trackDelay = false;
         if (player_volume != volume) 
         {

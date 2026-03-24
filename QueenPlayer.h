@@ -26,6 +26,8 @@ class QueenPlayer{
             // Serial 2
         #elif defined _QueenUnisense3v1
             playerSerial = new SoftwareSerial(40, 38);
+        #elif defined _QueenUnisense3v0
+            playerSerial = new SoftwareSerial(40, 38);
         #else 
             #error Плата не поддерживается.
         #endif
@@ -35,8 +37,8 @@ class QueenPlayer{
         playerBegin();
     }
 
-    void play(uint8_t track, uint8_t volume)
-    {
+    void play(int16_t track, uint8_t volume)
+    {`
         bool trackDelay = false;
         if (player_volume != volume) 
         {
@@ -75,8 +77,8 @@ class QueenPlayer{
 
     private:
     SoftwareSerial* playerSerial; 
-    uint8_t player_track = -1;
-    uint8_t player_volume = -1;
+    int16_t player_track = -1;
+    int16_t player_volume = -1;
     
     void playerBegin(){
         #if defined _QueenUnisense4

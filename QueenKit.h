@@ -224,6 +224,15 @@ private:
   // Если на плате стоит автопереключение
 #if SWITCH == true
   inline void transmit() { QUEENSERIAL.write(outRPI, 36); }
+#elif defined(_QueenUnisense3v0)
+void transmit()
+{
+   delayMicroseconds(70);
+   PORTG |= (1<<0);
+   QUEENSERIAL.write(outRPI, 36);
+   delayMicroseconds(980);
+   PORTG &= ~(1<<0);
+}
 #else // Если на плате нет автопереключения, переключаем программно
 inline void transmit() {
     delayMicroseconds(70);
